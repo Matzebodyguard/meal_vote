@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.10
+- Neue Touch-optimierte Zutatenverwaltung mit eigenen Feldern für Zutat, Menge und Einheit.
+- Zutaten können direkt hinzugefügt, gelöscht und per Pfeiltasten sortiert werden.
+- Einheit mit Vorschlägen (g, kg, ml, l, Stück, Dose, Packung, EL, TL, Prise, Bund), Freitext bleibt möglich.
+- Bestehende `ingredients.csv` bleibt vollständig kompatibel.
+
 ## 0.4.8
 - Neuer eindeutiger Lovelace-Kartentyp `meal-vote-card-v048`, damit alte gecachte Ressourcen die neue UI nicht mehr blockieren.
 - Sichtbares UI-Badge `UI 0.4.8`.
