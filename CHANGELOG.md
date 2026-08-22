@@ -33,3 +33,9 @@
 ## 0.3.3
 - Namensauswahl beim Abstimmen
 - 10-Minuten-Synchronisierung
+
+## 0.4.4
+- Fix: Einkaufsauswahl verwendet einen eigenen Dialog und öffnet zuverlässig auch aus der Zutatenansicht.
+- Fix: To-do-Aktionen adressieren die konfigurierte Liste über Home-Assistant-Targets.
+- Fix: vorhandene offene To-do-Einträge werden robuster eingelesen und aktualisiert.
+- Verbesserung: Mengenerkennung unterstützt zusätzlich Einträge wie `2 Zwiebeln` ohne explizite Einheit.

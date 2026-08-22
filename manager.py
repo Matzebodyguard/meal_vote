@@ -240,19 +240,6 @@ class MealVoteManager:
         except (InvalidOperation, AttributeError):
             return None
 
-    @classmethod
-    def _parse_shopping_summary(cls, summary: str):
-        """Parse '<amount> <unit> <name>' created by this integration."""
-        summary = re.sub(r"\s+", " ", (summary or "").strip())
-        match = re.match(r"^(\d+(?:[.,]\d+)?)\s+([^\s]+)\s+(.+)$", summary)
-        if not match:
-            return {"amount": None, "unit": "", "name": summary}
-        return {
-            "amount": cls._decimal(match.group(1)),
-            "unit": cls._normalize_unit(match.group(2)),
-            "name": match.group(3).strip(),
-        }
-
     @staticmethod
     def _format_amount(value: Decimal) -> str:
         text = format(value.normalize(), "f")
@@ -283,21 +270,56 @@ class MealVoteManager:
         response = await self.hass.services.async_call(
             "todo",
             "get_items",
-            {"entity_id": self.todo_entity, "status": "needs_action"},
+            {"status": "needs_action"},
+            target={"entity_id": self.todo_entity},
             blocking=True,
             return_response=True,
         )
         entity_data = (response or {}).get(self.todo_entity, {})
-        return entity_data.get("items", []) if isinstance(entity_data, dict) else []
+        if not isinstance(entity_data, dict):
+            return []
+        items = entity_data.get("items", [])
+        return items if isinstance(items, list) else []
+
+    @classmethod
+    def _parse_shopping_summary(cls, summary: str):
+        """Parse shopping entries created here and common manually entered forms."""
+        summary = re.sub(r"\s+", " ", (summary or "").strip())
+        # amount + unit + ingredient, e.g. 500 g Hackfleisch
+        match = re.match(r"^(\d+(?:[.,]\d+)?)\s+([^\s]+)\s+(.+)$", summary)
+        if match:
+            return {
+                "amount": cls._decimal(match.group(1)),
+                "unit": cls._normalize_unit(match.group(2)),
+                "name": match.group(3).strip(),
+            }
+        # amount + ingredient without unit, e.g. 2 Zwiebeln
+        match = re.match(r"^(\d+(?:[.,]\d+)?)\s+(.+)$", summary)
+        if match:
+            return {
+                "amount": cls._decimal(match.group(1)),
+                "unit": "",
+                "name": match.group(2).strip(),
+            }
+        return {"amount": None, "unit": "", "name": summary}
 
     async def async_add_to_shopping_list(self, dish_id: str, ingredient_indices: list[int] | None = None):
         if dish_id not in self.dishes:
             raise ValueError("Unbekanntes Gericht")
-        ingredients = self.dishes[dish_id].get("ingredients", [])
+        all_ingredients = self.dishes[dish_id].get("ingredients", [])
+        ingredients = all_ingredients
         if ingredient_indices is not None:
-            ingredients = [ingredients[i] for i in ingredient_indices if 0 <= i < len(ingredients)]
+            valid_indices = []
+            for raw_index in ingredient_indices:
+                try:
+                    idx = int(raw_index)
+                except (TypeError, ValueError):
+                    continue
+                if 0 <= idx < len(all_ingredients):
+                    valid_indices.append(idx)
+            ingredients = [all_ingredients[i] for i in valid_indices]
         if not ingredients:
-            raise ValueError("Für dieses Gericht sind keine Zutaten hinterlegt")
+            raise ValueError("Bitte mindestens eine Zutat auswählen")
         if not self.hass.services.has_service("todo", "add_item"):
             raise ValueError("Der Home-Assistant-Dienst 'todo.add_item' ist nicht verfügbar")
         if self.hass.states.get(self.todo_entity) is None:
@@ -306,19 +328,21 @@ class MealVoteManager:
         open_items = await self._async_open_todo_items()
         existing = []
         for todo_item in open_items:
-            parsed = self._parse_shopping_summary(todo_item.get("summary", ""))
+            summary = str(todo_item.get("summary", "") or "").strip()
+            parsed = self._parse_shopping_summary(summary)
             parsed["uid"] = todo_item.get("uid")
-            parsed["summary"] = todo_item.get("summary", "")
+            parsed["summary"] = summary
             parsed["key"] = self._normalize_food_name(parsed["name"])
             existing.append(parsed)
 
-        added = 0
-        updated = 0
-        already_present = 0
+        added = updated = already_present = 0
         for ingredient in ingredients:
-            name = (ingredient.get("name") or "").strip()
-            amount_text = (ingredient.get("amount") or "").strip()
-            unit = self._normalize_unit(ingredient.get("unit") or "")
+            name = str(ingredient.get("name") or "").strip()
+            if not name:
+                continue
+            amount_text = str(ingredient.get("amount") or "").strip()
+            raw_unit = str(ingredient.get("unit") or "").strip()
+            unit = self._normalize_unit(raw_unit)
             amount = self._decimal(amount_text)
             key = self._normalize_food_name(name)
             match = next((item for item in existing if item["key"] == key), None)
@@ -327,27 +351,27 @@ class MealVoteManager:
                 merged = self._merge_quantities(match.get("amount"), match.get("unit", ""), amount, unit)
                 if merged and self.hass.services.has_service("todo", "update_item"):
                     total, result_unit = merged
-                    rename = f"{self._format_amount(total)} {result_unit} {name}".strip()
+                    quantity = self._format_amount(total)
+                    rename = " ".join(x for x in [quantity, result_unit, name] if x).strip()
                     await self.hass.services.async_call(
                         "todo",
                         "update_item",
-                        {"entity_id": self.todo_entity, "item": match.get("uid") or match["summary"], "rename": rename},
+                        {"item": match.get("uid") or match["summary"], "rename": rename},
+                        target={"entity_id": self.todo_entity},
                         blocking=True,
                     )
-                    match.update(amount=total, unit=result_unit, name=name, summary=rename)
+                    match.update(amount=total, unit=result_unit, name=name, summary=rename, key=key)
                     updated += 1
                     continue
-                # Same ingredient is already on the list, but its quantity cannot
-                # be combined safely (e.g. no amount or incompatible units).
                 already_present += 1
                 continue
 
-            prefix = " ".join(x for x in [amount_text, ingredient.get("unit", "")] if x).strip()
-            text = f"{prefix} {name}".strip()
+            text = " ".join(x for x in [amount_text, raw_unit, name] if x).strip()
             await self.hass.services.async_call(
                 "todo",
                 "add_item",
-                {"entity_id": self.todo_entity, "item": text},
+                {"item": text},
+                target={"entity_id": self.todo_entity},
                 blocking=True,
             )
             existing.append({"key": key, "amount": amount, "unit": unit, "name": name, "summary": text, "uid": None})
