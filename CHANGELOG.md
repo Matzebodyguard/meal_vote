@@ -1,17 +1,22 @@
 # Changelog
 
-## 0.4.16
+## 0.4.17
+- Globale Standardvorrat-Markierung wird jetzt in allen Gerichten direkt im Zutateneditor angezeigt.
+- Aktive 🏠-Schaltflächen werden optisch hervorgehoben.
+- Entfernen/Hinzufügen aktualisiert die Markierung sofort.
+
+## 0.4.17
 - Standardvorrat-Liste ergänzt.
 - Vorratszutaten sind im Einkaufsdialog standardmäßig abgewählt und mit 🏠 markiert.
 - Zutaten können direkt im Zutateneditor dem Standardvorrat hinzugefügt oder daraus entfernt werden.
 - Standardvorrat wird lokal in Home Assistant gespeichert.
 
-## 0.4.16
+## 0.4.17
 - Zutaten-Autovervollständigung aus bereits verwendeten Zutaten.
 - Häufigste bisherige Einheit wird beim Auswählen vorgeschlagen.
 - Keine separate Zutaten-Datenbank nötig.
 
-## 0.4.16
+## 0.4.17
 - Neue Touch-optimierte Zutatenverwaltung mit eigenen Feldern für Zutat, Menge und Einheit.
 - Zutaten können direkt hinzugefügt, gelöscht und per Pfeiltasten sortiert werden.
 - Einheit mit Vorschlägen (g, kg, ml, l, Stück, Dose, Packung, EL, TL, Prise, Bund), Freitext bleibt möglich.
@@ -50,13 +55,18 @@
 
 # Changelog
 
-## 0.4.16
+## 0.4.17
+- Globale Standardvorrat-Markierung wird jetzt in allen Gerichten direkt im Zutateneditor angezeigt.
+- Aktive 🏠-Schaltflächen werden optisch hervorgehoben.
+- Entfernen/Hinzufügen aktualisiert die Markierung sofort.
+
+## 0.4.17
 - Standardvorrat-Liste ergänzt.
 - Vorratszutaten sind im Einkaufsdialog standardmäßig abgewählt und mit 🏠 markiert.
 - Zutaten können direkt im Zutateneditor dem Standardvorrat hinzugefügt oder daraus entfernt werden.
 - Standardvorrat wird lokal in Home Assistant gespeichert.
 
-## 0.4.16
+## 0.4.17
 - Zutaten-Autovervollständigung aus bereits verwendeten Zutaten.
 - Häufigste bisherige Einheit wird beim Auswählen vorgeschlagen.
 - Keine separate Zutaten-Datenbank nötig.
