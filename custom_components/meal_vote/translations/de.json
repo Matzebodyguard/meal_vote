@@ -4,10 +4,11 @@
     "step": {
       "user": {
         "title": "Essenswahl einrichten",
-        "description": "Wähle den eingebundenen Synology-Ordner und die abstimmenden Personen.",
+        "description": "Wähle den eingebundenen Synology-Ordner, die abstimmenden Personen und die Home-Assistant-To-do-Liste für Einkäufe.",
         "data": {
           "data_path": "Datenordner",
-          "people": "Personen (kommagetrennt)"
+          "people": "Personen (kommagetrennt)",
+          "todo_entity": "Einkaufsliste (To-do-Entität)"
         }
       }
     },
@@ -23,7 +24,8 @@
       "init": {
         "title": "Essenswahl Optionen",
         "data": {
-          "people": "Personen (kommagetrennt)"
+          "people": "Personen (kommagetrennt)",
+          "todo_entity": "Einkaufsliste (To-do-Entität)"
         }
       }
     }

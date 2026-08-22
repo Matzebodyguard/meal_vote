@@ -1,60 +1,54 @@
 # Essenswahl für Home Assistant
 
-Lokale Familien-Essenswahl für Home Assistant mit NAS-gestützter Gerichtsliste, Bildern, Abstimmungen und Kochhistorie.
+Familien-Voting für Gerichte mit Synology-/NAS-CSV, Bildern, Kochhistorie, Zutaten und Home-Assistant-Einkaufsliste.
 
-## Funktionen
-
-- Jede konfigurierte Person hat höchstens eine Stimme pro Gericht.
-- Sichtbar, wer für welches Gericht abgestimmt hat.
-- **Gekocht** löscht nur die Stimmen des gewählten Gerichts.
-- Gericht bleibt danach sofort wieder wählbar.
-- Gerichte hinzufügen, bearbeiten, deaktivieren und löschen.
-- Bilder auf einem NAS speichern und über Home Assistant anzeigen.
-- CSV auf einer Synology-Freigabe als Stammdatenquelle.
-- Lokaler Home-Assistant-Cache für NAS-Ausfälle.
-- Automatische Synchronisierung alle zehn Minuten.
-- Lovelace-Karte ist ab v0.3 direkt in der Integration enthalten.
-
-## HACS-Installation
-
-1. Dieses Repository als **Custom repository** in HACS hinzufügen, Kategorie **Integration**.
-2. `Essenswahl` über HACS installieren.
-3. Home Assistant neu starten.
-4. Unter **Einstellungen → Geräte & Dienste → Integration hinzufügen** `Essenswahl` wählen.
-5. Als Datenpfad z. B. `/share/essenswahl` angeben.
-6. Unter **Einstellungen → Dashboards → Ressourcen** einmalig folgende Ressource ergänzen:
-   - URL: `/meal_vote_static/meal-vote-card.js`
-   - Typ: `JavaScript-Modul`
-7. Dashboard-Karte hinzufügen:
-
-```yaml
-type: custom:meal-vote-card
-```
-
-## Synology
-
-Empfohlene Struktur:
+## NAS-Struktur
 
 ```text
 essenswahl/
 ├── dishes.csv
+├── ingredients.csv
 └── images/
 ```
 
-Home Assistant OS kann die SMB/CIFS-Freigabe als Network Storage einbinden. Die Integration selbst benötigt dadurch keine NAS-Zugangsdaten.
+### dishes.csv
+```csv
+id,name,category,image,active
+spaghetti,Spaghetti Bolognese,Pasta,images/spaghetti.jpg,true
+```
 
-## Update von v0.2 auf v0.3
+### ingredients.csv
+```csv
+dish_id,name,amount,unit
+spaghetti,Hackfleisch,500,g
+spaghetti,Spaghetti,500,g
+spaghetti,Tomaten,2,Dose
+```
 
-Die bestehenden Stimmen und die Kochhistorie liegen im Home-Assistant-Storage und bleiben erhalten. `dishes.csv` und Bilder auf dem NAS werden nicht ersetzt.
+`ingredients.csv` wird automatisch angelegt/aktualisiert, sobald Zutaten über Home Assistant gespeichert werden.
 
-Nach Installation von v0.3 kann die alte Dashboard-Ressource `/local/meal-vote-card.js` entfernt und einmalig durch `/meal_vote_static/meal-vote-card.js` ersetzt werden. Danach werden Backend und Karte gemeinsam über HACS aktualisiert.
+## Einkaufsliste
+Für den Button **Zur Einkaufsliste** nutzt Essenswahl Home Assistants To-do-System. Standardmäßig werden Zutaten mit `todo.add_item` an **`todo.zuhause`** gesendet. Unter **Einstellungen → Geräte & Dienste → Essenswahl → Konfigurieren** kann eine andere To-do-Entität eingetragen werden. Menge, Einheit und Zutatenname werden zu einem To-do-Eintrag zusammengefügt.
 
-## GitHub-Repository
+## Dashboard
+Ressource einmalig:
+```text
+/meal_vote_static/meal-vote-card.js
+```
+Typ: JavaScript-Modul
 
-Dieses Paket ist für `https://github.com/Matzebodyguard/meal_vote` vorbereitet.
+Karte:
+```yaml
+type: custom:meal-vote-card
+```
 
-Empfohlene erste Veröffentlichung: GitHub Release/Tag `v0.3.0`.
+## Zutaten bearbeiten
+Im Gericht-Dialog eine Zutat pro Zeile:
+```text
+500;g;Hackfleisch
+1;Stück;Zwiebel
+2;Dose;Tomaten
+```
 
-
-## Abstimmen
-Auf „Stimme geben“ tippen und anschließend die Person auswählen. Markierte Namen haben bereits abgestimmt; erneutes Antippen entfernt die Stimme.
+## Update
+Bestehende Votes und Kochhistorie bleiben erhalten. Alte Kochhistorien ohne `cooked_dates` werden automatisch weiterverwendet; ab v0.4.1 werden neue Kochzeitpunkte zusätzlich einzeln gespeichert.

@@ -6,7 +6,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 
-from .const import DEFAULT_DATA_PATH, DEFAULT_PEOPLE, DOMAIN
+from .const import DEFAULT_DATA_PATH, DEFAULT_PEOPLE, DEFAULT_TODO_ENTITY, DOMAIN
 
 
 class MealVoteConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -26,6 +26,7 @@ class MealVoteConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         schema = vol.Schema({
             vol.Required("data_path", default=DEFAULT_DATA_PATH): str,
             vol.Required("people", default=DEFAULT_PEOPLE): str,
+            vol.Required("todo_entity", default=DEFAULT_TODO_ENTITY): str,
         })
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
@@ -46,6 +47,10 @@ class MealVoteOptionsFlow(config_entries.OptionsFlow):
             vol.Required(
                 "people",
                 default=self.config_entry.options.get("people", self.config_entry.data.get("people", DEFAULT_PEOPLE)),
+            ): str,
+            vol.Required(
+                "todo_entity",
+                default=self.config_entry.options.get("todo_entity", self.config_entry.data.get("todo_entity", DEFAULT_TODO_ENTITY)),
             ): str,
         })
         return self.async_show_form(step_id="init", data_schema=schema)

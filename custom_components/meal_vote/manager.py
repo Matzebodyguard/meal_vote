@@ -12,17 +12,19 @@ from pathlib import Path
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
-from .const import CSV_NAME, IMAGE_CACHE_DIR, MAX_IMAGE_BYTES, STORE_KEY, STORE_VERSION, SYNC_MINUTES
+from .const import CSV_NAME, IMAGE_CACHE_DIR, INGREDIENTS_CSV_NAME, MAX_IMAGE_BYTES, STORE_KEY, STORE_VERSION, SYNC_MINUTES
 
 _SAFE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 
 class MealVoteManager:
-    def __init__(self, hass: HomeAssistant, data_path: str, people: list[str]):
+    def __init__(self, hass: HomeAssistant, data_path: str, people: list[str], todo_entity: str):
         self.hass = hass
         self.data_path = Path(data_path)
         self.csv_path = self.data_path / CSV_NAME
+        self.ingredients_csv_path = self.data_path / INGREDIENTS_CSV_NAME
         self.people = people
+        self.todo_entity = todo_entity
         self.dishes: dict[str, dict] = {}
         self.store = Store(hass, STORE_VERSION, STORE_KEY)
         self.state = {"votes": {}, "history": {}, "cached_dishes": []}
@@ -44,6 +46,9 @@ class MealVoteManager:
     async def async_reload(self):
         try:
             dishes = await self.hass.async_add_executor_job(self._read_csv)
+            ingredients = await self.hass.async_add_executor_job(self._read_ingredients_csv)
+            for dish in dishes:
+                dish["ingredients"] = ingredients.get(dish["id"], [])
             self.dishes = {d["id"]: d for d in dishes}
             await self.hass.async_add_executor_job(self._sync_images)
             self.state["cached_dishes"] = list(self.dishes.values())
@@ -75,10 +80,26 @@ class MealVoteManager:
                 })
         return result
 
+    def _read_ingredients_csv(self):
+        result: dict[str, list[dict]] = {}
+        if not self.ingredients_csv_path.is_file():
+            return result
+        with self.ingredients_csv_path.open("r", encoding="utf-8-sig", newline="") as f:
+            for row in csv.DictReader(f):
+                dish_id = (row.get("dish_id") or "").strip()
+                name = (row.get("name") or "").strip()
+                if not dish_id or not name:
+                    continue
+                result.setdefault(dish_id, []).append({
+                    "name": name,
+                    "amount": (row.get("amount") or "").strip(),
+                    "unit": (row.get("unit") or "").strip(),
+                })
+        return result
+
     def _write_csv(self, dishes):
         if not self.data_path.is_dir():
             raise FileNotFoundError(f"Datenordner nicht erreichbar: {self.data_path}")
-        self.data_path.mkdir(parents=True, exist_ok=True)
         tmp = self.csv_path.with_suffix(".tmp")
         with tmp.open("w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=["id", "name", "category", "image", "active"])
@@ -89,6 +110,25 @@ class MealVoteManager:
                     "image": d.get("image", ""), "active": "true" if d.get("active", True) else "false"
                 })
         os.replace(tmp, self.csv_path)
+
+    def _write_ingredients_csv(self, dishes):
+        if not self.data_path.is_dir():
+            raise FileNotFoundError(f"Datenordner nicht erreichbar: {self.data_path}")
+        tmp = self.ingredients_csv_path.with_suffix(".tmp")
+        with tmp.open("w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=["dish_id", "name", "amount", "unit"])
+            writer.writeheader()
+            for d in dishes:
+                for item in d.get("ingredients", []):
+                    name = str(item.get("name", "")).strip()
+                    if not name:
+                        continue
+                    writer.writerow({
+                        "dish_id": d["id"], "name": name,
+                        "amount": str(item.get("amount", "")).strip(),
+                        "unit": str(item.get("unit", "")).strip(),
+                    })
+        os.replace(tmp, self.ingredients_csv_path)
 
     def _sync_images(self):
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -123,21 +163,27 @@ class MealVoteManager:
         if dish_id not in self.dishes:
             raise ValueError("Unbekanntes Gericht")
         self.state["votes"].pop(dish_id, None)
-        history = self.state["history"].setdefault(dish_id, {"times_cooked": 0, "last_cooked": None})
+        history = self.state["history"].setdefault(dish_id, {"times_cooked": 0, "last_cooked": None, "cooked_dates": []})
+        now = datetime.now().astimezone().isoformat(timespec="seconds")
+        dates = history.setdefault("cooked_dates", [])
+        dates.append(now)
+        history["cooked_dates"] = dates[-100:]
         history["times_cooked"] = int(history.get("times_cooked", 0)) + 1
-        history["last_cooked"] = datetime.now().astimezone().isoformat(timespec="seconds")
+        history["last_cooked"] = now
         await self._save()
 
-    async def async_add_dish(self, name: str, category: str = "", image: str = ""):
+    async def async_add_dish(self, name: str, category: str = "", image: str = "", ingredients: list[dict] | None = None):
         dish_id = uuid.uuid4().hex[:12]
-        dish = {"id": dish_id, "name": name.strip(), "category": category.strip(), "image": image.strip(), "active": True}
+        dish = {"id": dish_id, "name": name.strip(), "category": category.strip(), "image": image.strip(), "active": True, "ingredients": self._clean_ingredients(ingredients or [])}
         if not dish["name"]:
             raise ValueError("Name darf nicht leer sein")
-        await self.hass.async_add_executor_job(self._write_csv, list(self.dishes.values()) + [dish])
+        dishes = [dict(d) for d in self.dishes.values()] + [dish]
+        await self.hass.async_add_executor_job(self._write_csv, dishes)
+        await self.hass.async_add_executor_job(self._write_ingredients_csv, dishes)
         await self.async_reload()
         return dish_id
 
-    async def async_update_dish(self, dish_id: str, name: str, category: str = "", image: str = "", active: bool = True):
+    async def async_update_dish(self, dish_id: str, name: str, category: str = "", image: str = "", active: bool = True, ingredients: list[dict] | None = None):
         if dish_id not in self.dishes:
             raise ValueError("Unbekanntes Gericht")
         if not name.strip():
@@ -146,9 +192,12 @@ class MealVoteManager:
         for d in dishes:
             if d["id"] == dish_id:
                 d.update(name=name.strip(), category=category.strip(), image=image.strip(), active=bool(active))
+                if ingredients is not None:
+                    d["ingredients"] = self._clean_ingredients(ingredients)
                 d.pop("image_url", None)
                 break
         await self.hass.async_add_executor_job(self._write_csv, dishes)
+        await self.hass.async_add_executor_job(self._write_ingredients_csv, dishes)
         await self.async_reload()
 
     async def async_delete_dish(self, dish_id: str):
@@ -156,9 +205,31 @@ class MealVoteManager:
             raise ValueError("Unbekanntes Gericht")
         dishes = [d for d in self.dishes.values() if d["id"] != dish_id]
         await self.hass.async_add_executor_job(self._write_csv, dishes)
+        await self.hass.async_add_executor_job(self._write_ingredients_csv, dishes)
         self.state["votes"].pop(dish_id, None)
         self.state["history"].pop(dish_id, None)
         await self.async_reload()
+
+    async def async_add_to_shopping_list(self, dish_id: str):
+        if dish_id not in self.dishes:
+            raise ValueError("Unbekanntes Gericht")
+        ingredients = self.dishes[dish_id].get("ingredients", [])
+        if not ingredients:
+            raise ValueError("Für dieses Gericht sind keine Zutaten hinterlegt")
+        if not self.hass.services.has_service("todo", "add_item"):
+            raise ValueError("Der Home-Assistant-Dienst 'todo.add_item' ist nicht verfügbar")
+        if self.hass.states.get(self.todo_entity) is None:
+            raise ValueError(f"Die To-do-Liste '{self.todo_entity}' wurde nicht gefunden")
+        for item in ingredients:
+            prefix = " ".join(x for x in [item.get("amount", ""), item.get("unit", "")] if x).strip()
+            text = f"{prefix} {item['name']}".strip()
+            await self.hass.services.async_call(
+                "todo",
+                "add_item",
+                {"entity_id": self.todo_entity, "item": text},
+                blocking=True,
+            )
+        return len(ingredients)
 
     async def async_upload_image(self, dish_id: str, filename: str, data_url: str) -> str:
         if dish_id not in self.dishes:
@@ -175,7 +246,7 @@ class MealVoteManager:
         target = self.data_path / rel
         await self.hass.async_add_executor_job(self._write_image, target, raw)
         d = self.dishes[dish_id]
-        await self.async_update_dish(dish_id, d["name"], d.get("category", ""), rel, d.get("active", True))
+        await self.async_update_dish(dish_id, d["name"], d.get("category", ""), rel, d.get("active", True), d.get("ingredients", []))
         return rel
 
     def _write_image(self, target: Path, raw: bytes):
@@ -183,6 +254,17 @@ class MealVoteManager:
             raise FileNotFoundError(f"Datenordner nicht erreichbar: {self.data_path}")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(raw)
+
+    def _clean_ingredients(self, ingredients):
+        clean = []
+        for item in ingredients or []:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name", "")).strip()
+            if not name:
+                continue
+            clean.append({"name": name, "amount": str(item.get("amount", "")).strip(), "unit": str(item.get("unit", "")).strip()})
+        return clean
 
     def _validate(self, dish_id, person):
         if dish_id not in self.dishes:
@@ -198,9 +280,17 @@ class MealVoteManager:
         for d in self.dishes.values():
             hist = self.state["history"].get(d["id"], {})
             voters = self.state["votes"].get(d["id"], [])
-            out.append({**d, "voters": voters, "vote_count": len(voters), "last_cooked": hist.get("last_cooked"), "times_cooked": hist.get("times_cooked", 0)})
+            out.append({
+                **d,
+                "voters": voters,
+                "vote_count": len(voters),
+                "last_cooked": hist.get("last_cooked"),
+                "times_cooked": hist.get("times_cooked", 0),
+                "cooked_dates": hist.get("cooked_dates", []),
+            })
         return {
             "people": self.people,
             "dishes": out,
             "sync": {"last_ok": self.last_sync_ok, "error": self.last_sync_error, "interval_minutes": SYNC_MINUTES},
+            "todo_entity": self.todo_entity,
         }
