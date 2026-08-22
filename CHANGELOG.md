@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.4.10
+## 0.4.11
+- Zutaten-Autovervollständigung aus bereits verwendeten Zutaten.
+- Häufigste bisherige Einheit wird beim Auswählen vorgeschlagen.
+- Keine separate Zutaten-Datenbank nötig.
+
+## 0.4.11
 - Neue Touch-optimierte Zutatenverwaltung mit eigenen Feldern für Zutat, Menge und Einheit.
 - Zutaten können direkt hinzugefügt, gelöscht und per Pfeiltasten sortiert werden.
 - Einheit mit Vorschlägen (g, kg, ml, l, Stück, Dose, Packung, EL, TL, Prise, Bund), Freitext bleibt möglich.
@@ -38,6 +43,11 @@
 - Duplikat- und Mengen-Zusammenführung bleibt unverändert aktiv.
 
 # Changelog
+
+## 0.4.11
+- Zutaten-Autovervollständigung aus bereits verwendeten Zutaten.
+- Häufigste bisherige Einheit wird beim Auswählen vorgeschlagen.
+- Keine separate Zutaten-Datenbank nötig.
 
 ## 0.4.2
 - Einkaufsliste prüft vorhandene offene Einträge vor dem Hinzufügen.
