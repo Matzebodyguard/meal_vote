@@ -1,5 +1,6 @@
 DOMAIN = "meal_vote"
 DEFAULT_PEOPLE = "Kind 1,Kind 2,Mama,Papa"
+DEFAULT_DATA_PATH = "/share/essenswahl"
 CSV_NAME = "dishes.csv"
 STORE_KEY = "meal_vote_state"
 STORE_VERSION = 1

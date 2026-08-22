@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+- Fix: fehlende `DEFAULT_DATA_PATH`-Konstante ergänzt; behebt den Home-Assistant-Fehler „Import error“ beim Einrichten.
+
+
 ## 0.3.0
 
 - HACS-/GitHub-Repository-Struktur hinzugefügt.
