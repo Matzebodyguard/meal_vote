@@ -80,9 +80,13 @@ type: custom:meal-vote-card-v048
 Die alte `custom:meal-vote-card` kann parallel existieren; für den Test bitte die neue Karte verwenden.
 
 
-## Zutatenverwaltung ab v0.4.12
+## Zutatenverwaltung ab v0.4.13
 Beim Bearbeiten eines Gerichts werden Zutaten nicht mehr als Semikolon-Text gepflegt. Jede Zutat besitzt eigene Felder für Name, Menge und Einheit. Mit `＋ Zutat` können neue Zeilen ergänzt, mit `✕` gelöscht und mit `↑`/`↓` sortiert werden. Die Daten werden weiterhin in `ingredients.csv` gespeichert.
 
 
 ### Zutaten-Autovervollständigung
 Beim Bearbeiten werden bereits in allen Gerichten verwendete Zutaten vorgeschlagen. Bei Auswahl wird die am häufigsten verwendete Einheit automatisch gesetzt, sofern das Einheitenfeld noch leer ist.
+
+
+### Tolerante Zutaten-Suche
+Die Autovervollständigung erkennt auch kleinere Tippfehler und ähnliche Schreibweisen, z. B. `Tomtaen` → `Tomaten` oder einfache Singular/Plural-Varianten.
