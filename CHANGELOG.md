@@ -1,3 +1,10 @@
+## 0.4.7
+
+- Frontend-Ressource wieder auf stabilen Pfad `meal-vote-card.js` zurückgestellt.
+- Sichtbares UI-0.4.7-Badge ergänzt.
+- Registrierung des Custom Elements gegen doppelte Definition abgesichert.
+- Cache-Busting erfolgt über `?v=0.4.7`.
+
 # Changelog
 
 ## 0.4.6
