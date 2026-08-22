@@ -71,7 +71,7 @@ Für einen sicheren Cache-Wechsel die Dashboard-Ressource auf `/meal_vote_static
 
 
 ## Wichtig bei Update auf 0.4.8
-Dashboard-Ressource: `/meal_vote_static/meal-vote-card.js?v=0.4.15`
+Dashboard-Ressource: `/meal_vote_static/meal-vote-card.js?v=0.4.16`
 
 Kartentyp:
 ```yaml
@@ -80,7 +80,7 @@ type: custom:meal-vote-card
 Die alte `custom:meal-vote-card` kann parallel existieren; für den Test bitte die neue Karte verwenden.
 
 
-## Zutatenverwaltung ab v0.4.15
+## Zutatenverwaltung ab v0.4.16
 Beim Bearbeiten eines Gerichts werden Zutaten nicht mehr als Semikolon-Text gepflegt. Jede Zutat besitzt eigene Felder für Name, Menge und Einheit. Mit `＋ Zutat` können neue Zeilen ergänzt, mit `✕` gelöscht und mit `↑`/`↓` sortiert werden. Die Daten werden weiterhin in `ingredients.csv` gespeichert.
 
 
@@ -90,3 +90,7 @@ Beim Bearbeiten werden bereits in allen Gerichten verwendete Zutaten vorgeschlag
 
 ### Tolerante Zutaten-Suche
 Die Autovervollständigung erkennt auch kleinere Tippfehler und ähnliche Schreibweisen, z. B. `Tomtaen` → `Tomaten` oder einfache Singular/Plural-Varianten.
+
+
+### Standardvorrat
+Über **🏠 Standardvorrat** können häufig vorhandene Zutaten markiert werden. Diese bleiben in Rezepten sichtbar, sind beim Übertragen auf die Einkaufsliste aber zunächst nicht ausgewählt. Im Zutateneditor kann eine Zutat über das 🏠-Symbol direkt zum Standardvorrat hinzugefügt bzw. daraus entfernt werden.

@@ -28,7 +28,7 @@ class MealVoteManager:
         self.todo_entity = todo_entity
         self.dishes: dict[str, dict] = {}
         self.store = Store(hass, STORE_VERSION, STORE_KEY)
-        self.state = {"votes": {}, "history": {}, "cached_dishes": []}
+        self.state = {"votes": {}, "history": {}, "cached_dishes": [], "pantry": []}
         self.cache_dir = Path(hass.config.path("www", IMAGE_CACHE_DIR))
         self.last_sync_ok: str | None = None
         self.last_sync_error: str | None = None
@@ -410,6 +410,30 @@ class MealVoteManager:
 
         return {"count": len(ingredients), "added": added, "updated": updated, "already_present": already_present, "existing_count": len(open_items), "todo_entity": self.todo_entity}
 
+
+    async def async_set_pantry(self, ingredients: list[str]):
+        cleaned = []
+        seen = set()
+        for item in ingredients:
+            name = str(item or "").strip()
+            key = self._normalize_ingredient_name(name)
+            if name and key and key not in seen:
+                cleaned.append(name)
+                seen.add(key)
+        self.state["pantry"] = cleaned
+        await self._save()
+
+    @staticmethod
+    def _normalize_ingredient_name(value: str) -> str:
+        text = str(value or "").strip().lower()
+        text = re.sub(r"\s+", " ", text)
+        if len(text) > 5:
+            for ending in ("ern", "en", "er", "es", "e", "n", "s"):
+                if text.endswith(ending):
+                    text = text[:-len(ending)]
+                    break
+        return text
+
     async def async_upload_image(self, dish_id: str, filename: str, data_url: str) -> str:
         if dish_id not in self.dishes:
             raise ValueError("Unbekanntes Gericht")
@@ -472,4 +496,5 @@ class MealVoteManager:
             "dishes": out,
             "sync": {"last_ok": self.last_sync_ok, "error": self.last_sync_error, "interval_minutes": SYNC_MINUTES},
             "todo_entity": self.todo_entity,
+            "pantry": self.state.get("pantry", []),
         }
