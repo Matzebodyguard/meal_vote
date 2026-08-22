@@ -14,19 +14,20 @@ class MealWeekPlanCard extends HTMLElement{
   render(){
     const plan=this.data.week_plan||{}, dishes=this.activeDishes();
     this.shadowRoot.innerHTML=`<style>
-      :host{display:block;width:100%}*{box-sizing:border-box}ha-card{padding:16px;width:100%}
+      :host{display:block;width:100%;max-width:none!important;min-width:0}*{box-sizing:border-box}ha-card{display:block;width:100%!important;max-width:none!important;min-width:0;margin:0;padding:12px}
+      .weekShell{width:100%;max-width:none;min-width:0}
       .head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}.head h2{margin:0;flex:1}.badge{font-size:.78rem;opacity:.65}
-      .week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;align-items:start}.day{border:1px solid var(--divider-color);border-radius:16px;padding:10px;min-width:0;background:var(--ha-card-background,var(--card-background-color))}
+      .week{display:grid;width:100%;max-width:none;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;align-items:start}.day{border:1px solid var(--divider-color);border-radius:16px;padding:10px;min-width:0;background:var(--ha-card-background,var(--card-background-color))}
       .day h3{margin:0 0 9px;text-align:center;font-size:1rem}.meal{position:relative;margin:8px 0;border:1px solid var(--divider-color);border-radius:13px;overflow:hidden;background:var(--secondary-background-color)}
       .mealCard{min-height:86px;padding:10px 30px 10px 10px;display:flex;flex-direction:column;justify-content:center;gap:4px;cursor:pointer}.mealCard strong{line-height:1.2;overflow-wrap:anywhere}.mealCard small{opacity:.65}.mealRemove{position:absolute;right:5px;top:5px;border:0!important;background:transparent!important;padding:5px!important;font-size:1rem}.meal select{width:100%;min-width:0}.meal button,.add,.shop,.clear{border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);border-radius:10px;padding:8px 10px;cursor:pointer}
       .add{width:100%;margin-top:5px}.picker{width:100%;font:inherit;border-radius:10px;border:1px solid var(--divider-color);padding:9px;background:var(--card-background-color);color:var(--primary-text-color)}
       @media(max-width:1000px){.week{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:650px){.week{grid-template-columns:repeat(2,minmax(0,1fr))}}
       .footer{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px}.shop{background:var(--primary-color);color:var(--text-primary-color);font-weight:700}
       dialog{border:0;border-radius:18px;padding:0;background:var(--card-background-color);color:var(--primary-text-color);width:min(620px,94vw);max-height:88vh}.modal{padding:20px}.list{max-height:55vh;overflow:auto}.item{display:flex;gap:10px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--divider-color)}.actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:15px}.actions button{padding:9px 12px;border-radius:10px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color)}
-    </style><ha-card><div class="head"><h2>📅 Wochenplan</h2><span class="badge">UI 0.5.1</span><button id="reload" class="clear">↻</button></div>
+    </style><ha-card><div class="weekShell"><div class="head"><h2>📅 Wochenplan</h2><span class="badge">UI 0.5.2</span><button id="reload" class="clear">↻</button></div>
       <div class="week">${this.days().map(([key,label])=>{const ids=plan[key]||[];return `<div class="day"><h3>${label}</h3><div data-day="${key}">${ids.map((id,i)=>this.mealRow(key,id,i,dishes)).join('')}</div><button class="add" data-add="${key}">＋ Gericht</button></div>`}).join('')}</div>
       <div class="footer"><button id="clear" class="clear">Woche leeren</button><button id="shopping" class="shop">🛒 Wocheneinkauf erstellen</button></div>
-      <dialog id="shopDialog"><div class="modal" id="shopModal"></div></dialog>
+      <dialog id="shopDialog"><div class="modal" id="shopModal"></div></dialog></div>
     </ha-card>`;
     this.shadowRoot.querySelector('#reload').onclick=()=>this.load();
     this.shadowRoot.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const p=structuredClone(this.data.week_plan||{});(p[b.dataset.add]??=[]).push('');this.data.week_plan=p;this.render();});
