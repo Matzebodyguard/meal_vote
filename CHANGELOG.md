@@ -1,4 +1,17 @@
+## v0.4.3
+- Auswahl-Dialog vor dem Übertragen von Zutaten zur Einkaufsliste.
+- Zutaten können einzeln abgewählt werden; standardmäßig sind alle ausgewählt.
+- Buttons „Alle“ und „Keine“ für schnelle Auswahl.
+- Duplikat- und Mengen-Zusammenführung bleibt unverändert aktiv.
+
 # Changelog
+
+## 0.4.2
+- Einkaufsliste prüft vorhandene offene Einträge vor dem Hinzufügen.
+- Gleiche Zutaten mit gleicher/kompatibler Einheit werden mengenmäßig ergänzt.
+- Unterstützt automatische Umrechnung kg↔g und l↔ml beim Zusammenführen.
+- Nicht sicher zusammenführbare vorhandene Zutaten werden nicht doppelt angelegt.
+- Rückmeldung unterscheidet neue, ergänzte und bereits vorhandene Zutaten.
 
 ## 0.4.1
 - Einkaufsliste auf Home Assistants `todo.add_item` umgestellt.

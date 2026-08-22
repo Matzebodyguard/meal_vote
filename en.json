@@ -1,0 +1,33 @@
+{
+  "title": "Meal Vote",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Meal Vote",
+        "description": "Choose the mounted NAS folder, the people who can vote, and the Home Assistant to-do entity used for shopping.",
+        "data": {
+          "data_path": "Data folder",
+          "people": "People (comma separated)",
+          "todo_entity": "Shopping list (to-do entity)"
+        }
+      }
+    },
+    "error": {
+      "path_not_found": "The folder was not found."
+    },
+    "abort": {
+      "already_configured": "Meal Vote is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Meal Vote options",
+        "data": {
+          "people": "People (comma separated)",
+          "todo_entity": "Shopping list (to-do entity)"
+        }
+      }
+    }
+  }
+}

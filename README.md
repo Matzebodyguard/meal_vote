@@ -52,3 +52,11 @@ Im Gericht-Dialog eine Zutat pro Zeile:
 
 ## Update
 Bestehende Votes und Kochhistorie bleiben erhalten. Alte Kochhistorien ohne `cooked_dates` werden automatisch weiterverwendet; ab v0.4.1 werden neue Kochzeitpunkte zusätzlich einzeln gespeichert.
+
+
+## Intelligente Einkaufsliste (v0.4.2)
+Vor dem Übertragen liest Essenswahl die offenen Einträge der konfigurierten To-do-Liste. Bereits vorhandene Zutaten werden nach Namen erkannt. Numerische Mengen mit gleicher oder kompatibler Einheit werden addiert (z. B. 500 g + 500 g = 1000 g; 500 g + 1 kg = 1500 g). Ist eine sichere Zusammenführung nicht möglich, wird kein Duplikat erzeugt.
+
+
+### Zutaten vor dem Einkauf auswählen
+Beim Klick auf **Einkaufsliste** öffnet sich ab v0.4.3 zuerst ein Auswahlfenster. Alle Zutaten sind standardmäßig markiert. Zutaten, die bereits zu Hause sind, können abgewählt werden. Nur die verbleibende Auswahl wird an die konfigurierte To-do-Liste übertragen.
