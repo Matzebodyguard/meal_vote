@@ -28,7 +28,7 @@ class MealVoteManager:
         self.todo_entity = todo_entity
         self.dishes: dict[str, dict] = {}
         self.store = Store(hass, STORE_VERSION, STORE_KEY)
-        self.state = {"votes": {}, "history": {}, "cached_dishes": [], "pantry": []}
+        self.state = {"votes": {}, "history": {}, "cached_dishes": [], "pantry": [], "week_plan": {}}
         self.cache_dir = Path(hass.config.path("www", IMAGE_CACHE_DIR))
         self.last_sync_ok: str | None = None
         self.last_sync_error: str | None = None
@@ -434,6 +434,42 @@ class MealVoteManager:
                     break
         return text
 
+
+    async def async_set_week_plan(self, plan: dict[str, list[str]]):
+        cleaned: dict[str, list[str]] = {}
+        for day, dish_ids in (plan or {}).items():
+            if day not in {"mon", "tue", "wed", "thu", "fri", "sat", "sun"}:
+                continue
+            ids = [str(x) for x in (dish_ids or []) if str(x) in self.dishes]
+            cleaned[day] = ids
+        self.state["week_plan"] = cleaned
+        await self._save()
+
+    async def async_add_week_to_shopping_list(self, ingredient_refs: list[dict] | None = None):
+        # The frontend sends explicit selected dish/index pairs so pantry items can
+        # remain unchecked while the existing duplicate/quantity merge logic is reused.
+        refs = ingredient_refs or []
+        totals = {"added": 0, "updated": 0, "already_present": 0, "existing_count": 0, "todo_entity": self.todo_entity}
+        first = True
+        grouped: dict[str, list[int]] = {}
+        for ref in refs:
+            dish_id = str(ref.get("dish_id", ""))
+            try:
+                idx = int(ref.get("index"))
+            except (TypeError, ValueError):
+                continue
+            if dish_id in self.dishes:
+                grouped.setdefault(dish_id, []).append(idx)
+        for dish_id, indices in grouped.items():
+            result = await self.async_add_to_shopping_list(dish_id, indices)
+            totals["added"] += int(result.get("added", 0))
+            totals["updated"] += int(result.get("updated", 0))
+            totals["already_present"] += int(result.get("already_present", 0))
+            if first:
+                totals["existing_count"] = int(result.get("existing_count", 0))
+                first = False
+        return totals
+
     async def async_upload_image(self, dish_id: str, filename: str, data_url: str) -> str:
         if dish_id not in self.dishes:
             raise ValueError("Unbekanntes Gericht")
@@ -497,4 +533,5 @@ class MealVoteManager:
             "sync": {"last_ok": self.last_sync_ok, "error": self.last_sync_error, "interval_minutes": SYNC_MINUTES},
             "todo_entity": self.todo_entity,
             "pantry": self.state.get("pantry", []),
+            "week_plan": self.state.get("week_plan", {}),
         }

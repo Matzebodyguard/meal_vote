@@ -45,7 +45,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         [StaticPathConfig("/meal_vote_static", str(frontend_dir), False)]
     )
 
-    for command in (ws_get_data, ws_add_dish, ws_update_dish, ws_delete_dish, ws_upload_image, ws_add_to_shopping_list, ws_set_pantry):
+    for command in (ws_get_data, ws_add_dish, ws_update_dish, ws_delete_dish, ws_upload_image, ws_add_to_shopping_list, ws_set_pantry, ws_set_week_plan, ws_add_week_to_shopping_list):
         websocket_api.async_register_command(hass, command)
     return True
 
@@ -166,3 +166,29 @@ async def ws_set_pantry(hass, connection, msg):
         connection.send_result(msg["id"], {"ok": True})
     except (ValueError, OSError) as err:
         connection.send_error(msg["id"], "pantry_failed", str(err))
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "meal_vote/set_week_plan",
+    vol.Required("plan"): dict,
+})
+@websocket_api.async_response
+async def ws_set_week_plan(hass, connection, msg):
+    try:
+        await _manager(hass).async_set_week_plan(msg["plan"])
+        connection.send_result(msg["id"], {"ok": True})
+    except (ValueError, OSError) as err:
+        connection.send_error(msg["id"], "week_plan_failed", str(err))
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "meal_vote/add_week_to_shopping_list",
+    vol.Required("ingredient_refs"): list,
+})
+@websocket_api.async_response
+async def ws_add_week_to_shopping_list(hass, connection, msg):
+    try:
+        result = await _manager(hass).async_add_week_to_shopping_list(msg["ingredient_refs"])
+        connection.send_result(msg["id"], {"ok": True, **result})
+    except (ValueError, OSError) as err:
+        connection.send_error(msg["id"], "week_shopping_failed", str(err))
