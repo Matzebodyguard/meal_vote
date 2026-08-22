@@ -64,3 +64,7 @@ Beim Klick auf **Einkaufsliste** öffnet sich ab v0.4.3 zuerst ein Auswahlfenste
 
 ### Frontend-Cache bei Updates
 Für v0.4.5 die Dashboard-Ressource einmal auf `/meal_vote_static/meal-vote-card.js?v=0.4.5` setzen. Dadurch wird garantiert die neue Karte geladen. In der Überschrift erscheint `UI 0.4.5` als Kontrolle.
+
+
+## Frontend-Ressource ab 0.4.6
+Für einen sicheren Cache-Wechsel die Dashboard-Ressource auf `/meal_vote_static/meal-vote-card-v0.4.6.js` setzen und alte `meal-vote-card.js`-Ressourcen entfernen. Danach den Browser vollständig neu laden. In der Karte muss `UI 0.4.6` sichtbar sein.

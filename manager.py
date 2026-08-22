@@ -408,7 +408,7 @@ class MealVoteManager:
             existing.append({"key": key, "amount": amount, "unit": unit, "name": name, "summary": text, "uid": None})
             added += 1
 
-        return {"count": len(ingredients), "added": added, "updated": updated, "already_present": already_present}
+        return {"count": len(ingredients), "added": added, "updated": updated, "already_present": already_present, "existing_count": len(open_items), "todo_entity": self.todo_entity}
 
     async def async_upload_image(self, dish_id: str, filename: str, data_url: str) -> str:
         if dish_id not in self.dishes:

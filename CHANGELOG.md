@@ -1,3 +1,11 @@
+# Changelog
+
+## 0.4.6
+- Frontend zusätzlich unter eindeutig versionierter Datei `meal-vote-card-v0.4.6.js`.
+- Sichtbarer Badge `UI 0.4.6` zur sicheren Cache-Prüfung.
+- Einkaufsliste meldet die Anzahl bereits erkannter offener To-do-Einträge zurück.
+- Auswahl-Dialog und Mengen-Zusammenführung aus 0.4.5 bleiben enthalten.
+
 ## 0.4.5
 - Frontend-Version sichtbar gemacht, damit Browser-Cache-Probleme sofort erkennbar sind.
 - Einkaufsliste: robustere Erkennung vorhandener Zutaten inklusive häufiger Singular-/Pluralformen.
