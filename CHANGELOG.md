@@ -1,8 +1,15 @@
 # Changelog
 
+## 0.3.3
+- Personenauswahl wird erst beim Tippen auf „Stimme geben“ geöffnet.
+- Große Touch-Schaltflächen für alle konfigurierten Personen.
+- Bereits abgegebene Stimmen werden im Dialog markiert.
+- Erneutes Antippen einer markierten Person entfernt deren Stimme.
+- Automatischer Karten-Refresh pausiert auch während des Abstimmungsdialogs.
+
 ## 0.3.2
 - Behebt das wiederholte Neuladen der Dashboard-Karte bei Home-Assistant-State-Updates.
-- Initialer Datenabruf erfolgt nur noch einmal; automatische Kartenaktualisierung maximal alle 2 Minuten.
+- Initialer Datenabruf erfolgt nur noch einmal; automatische Kartenaktualisierung maximal alle 10 Minuten.
 - Während Eingabe oder geöffnetem Gericht-Dialog wird kein automatischer Neuaufbau ausgeführt.
 - Karte und Gerichteraster nutzen die verfügbare Dashboard-Breite vollständig.
 

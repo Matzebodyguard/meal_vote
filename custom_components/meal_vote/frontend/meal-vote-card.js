@@ -1,7 +1,6 @@
 class MealVoteCard extends HTMLElement {
   setConfig(config) {
     this.config = config || {};
-    this._person = localStorage.getItem('meal_vote_person') || '';
     this._search = '';
     this._category = 'Alle';
     this._showInactive = false;
@@ -20,11 +19,11 @@ class MealVoteCard extends HTMLElement {
     if (!this._refreshTimer) {
       this._refreshTimer = setInterval(() => {
         if (!this.isConnected || this._loaded || !this._hass) return;
-        const dialog = this.shadowRoot?.querySelector('#dishDialog');
+        const openDialog = [...(this.shadowRoot?.querySelectorAll('dialog') || [])].some(d => d.open);
         const active = this.shadowRoot?.activeElement;
-        const editing = dialog?.open || (active && ['INPUT','SELECT','TEXTAREA'].includes(active.tagName));
+        const editing = openDialog || (active && ['INPUT','SELECT','TEXTAREA'].includes(active.tagName));
         if (!editing) this.load();
-      }, 120000);
+      }, 600000);
     }
   }
 
@@ -39,7 +38,6 @@ class MealVoteCard extends HTMLElement {
     this._loaded = true;
     try {
       this.data = await this._hass.connection.sendMessagePromise({type:'meal_vote/get_data'});
-      if (!this._person || !this.data.people.includes(this._person)) this._person = this.data.people[0] || '';
       this.render();
     } catch (e) {
       this.shadowRoot.innerHTML = `<ha-card><div style="padding:16px">Essenswahl konnte nicht geladen werden: ${this.esc(e.message || e)}</div></ha-card>`;
@@ -78,7 +76,8 @@ class MealVoteCard extends HTMLElement {
         .grid{width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}.dish{position:relative;border:1px solid var(--divider-color);border-radius:18px;overflow:hidden;background:var(--ha-card-background,var(--card-background-color))}
         .dish.inactive{opacity:.58}.pic{width:100%;height:155px;object-fit:cover;background:var(--secondary-background-color);display:block}.placeholder{display:grid;place-items:center;font-size:42px}
         .body{padding:14px}.nameRow{display:flex;gap:8px;align-items:flex-start}.name{font-size:1.22rem;font-weight:700;flex:1}.edit{padding:6px 9px}.meta{opacity:.75;margin-top:3px}.voters{min-height:26px;margin:10px 0;line-height:1.4}
-        .actions{display:flex;gap:8px}.vote{flex:1;font-weight:700}.mine{background:var(--primary-color);color:var(--text-primary-color)}.cooked{white-space:nowrap}.add{margin-left:auto}.toggle{white-space:nowrap}
+        .actions{display:flex;gap:8px}.vote{flex:1;font-weight:700}.cooked{white-space:nowrap}.add{margin-left:auto}.toggle{white-space:nowrap}
+        .peopleGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:14px}.personVote{min-height:58px;font-weight:700;font-size:1.05rem}.personVote.selected{background:var(--primary-color);color:var(--text-primary-color);border-color:var(--primary-color)}
         dialog{border:1px solid var(--divider-color);border-radius:18px;background:var(--card-background-color);color:var(--primary-text-color);width:min(520px,calc(100vw - 24px));padding:0;box-shadow:0 12px 45px rgba(0,0,0,.35)}
         dialog::backdrop{background:rgba(0,0,0,.5)}.modal{padding:18px}.modal h2{margin:0 0 16px}.field{display:flex;flex-direction:column;gap:6px;margin:12px 0}.field input{width:100%}.check{display:flex;gap:8px;align-items:center}.modalActions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}.danger{color:var(--error-color)}
         .preview{width:100%;height:180px;object-fit:cover;border-radius:12px;background:var(--secondary-background-color);margin-top:8px}.hint{font-size:.85rem;opacity:.7}.empty{padding:28px;text-align:center;opacity:.7}
@@ -87,7 +86,6 @@ class MealVoteCard extends HTMLElement {
       <ha-card>
         <div class="top">
           <input id="search" placeholder="🔎 Gericht, Kategorie oder Person suchen…" value="${this.esc(this._search)}">
-          <label class="person">Ich bin: <select id="person">${this.data.people.map(p=>`<option ${p===this._person?'selected':''}>${this.esc(p)}</option>`).join('')}</select></label>
           <button id="reload">↻ Sync</button>
           <button id="inactive" class="toggle">${this._showInactive?'Aktive':'Verwaltung'}</button>
           <button id="add" class="add">＋ Gericht</button>
@@ -96,21 +94,20 @@ class MealVoteCard extends HTMLElement {
         <div class="cats">${cats.map(c=>`<button data-cat="${this.esc(c)}" class="${c===this._category?'active':''}">${this.esc(c)}</button>`).join('')}</div>
         <div class="grid">${dishes.length ? dishes.map(d=>this.dishHtml(d)).join('') : '<div class="empty">Keine Gerichte gefunden.</div>'}</div>
         <dialog id="dishDialog"><div class="modal" id="dishModal"></div></dialog>
+        <dialog id="voteDialog"><div class="modal" id="voteModal"></div></dialog>
       </ha-card>`;
 
     this.shadowRoot.querySelector('#search').oninput = e => {this._search=e.target.value; this.render();};
-    this.shadowRoot.querySelector('#person').onchange = e => {this._person=e.target.value; localStorage.setItem('meal_vote_person',this._person); this.render();};
     this.shadowRoot.querySelector('#reload').onclick = ()=>this.call('reload');
     this.shadowRoot.querySelector('#add').onclick = ()=>this.openDishDialog();
     this.shadowRoot.querySelector('#inactive').onclick = ()=>{this._showInactive=!this._showInactive; this._category='Alle'; this.render();};
     this.shadowRoot.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{this._category=b.dataset.cat;this.render();});
-    this.shadowRoot.querySelectorAll('[data-vote]').forEach(b=>b.onclick=()=>this.call('vote',{dish_id:b.dataset.vote,person:this._person}));
+    this.shadowRoot.querySelectorAll('[data-vote]').forEach(b=>b.onclick=()=>this.openVoteDialog(this.data.dishes.find(d=>d.id===b.dataset.vote)));
     this.shadowRoot.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>this.openDishDialog(this.data.dishes.find(d=>d.id===b.dataset.edit)));
     this.shadowRoot.querySelectorAll('[data-cooked]').forEach(b=>b.onclick=()=>{ if(confirm('Dieses Gericht als gekocht markieren? Nur seine Stimmen werden gelöscht.')) this.call('mark_cooked',{dish_id:b.dataset.cooked}); });
   }
 
   dishHtml(d) {
-    const mine = (d.voters||[]).includes(this._person);
     const hist = d.last_cooked ? ` · zuletzt ${new Date(d.last_cooked).toLocaleDateString('de-DE')}` : '';
     const cookedCount = d.times_cooked ? ` · ${d.times_cooked}× gekocht` : '';
     return `<div class="dish ${d.active===false?'inactive':''}">
@@ -118,8 +115,44 @@ class MealVoteCard extends HTMLElement {
       <div class="body"><div class="nameRow"><div class="name">${this.esc(d.name)}${d.active===false?' (inaktiv)':''}</div><button class="edit" data-edit="${this.esc(d.id)}">✎</button></div>
       <div class="meta">${this.esc(d.category||'Ohne Kategorie')} · ${d.vote_count} Stimme${d.vote_count===1?'':'n'}${hist}${cookedCount}</div>
       <div class="voters">${d.voters.length?'👍 '+d.voters.map(x=>this.esc(x)).join(' · '):'Noch keine Stimmen'}</div>
-      ${d.active!==false?`<div class="actions"><button class="vote ${mine?'mine':''}" data-vote="${this.esc(d.id)}">${mine?'✓ Meine Stimme':'👍 Stimme geben'}</button><button class="cooked" data-cooked="${this.esc(d.id)}">🍳 Gekocht</button></div>`:''}</div>
+      ${d.active!==false?`<div class="actions"><button class="vote" data-vote="${this.esc(d.id)}">👍 Stimme geben</button><button class="cooked" data-cooked="${this.esc(d.id)}">🍳 Gekocht</button></div>`:''}</div>
     </div>`;
+  }
+
+  openVoteDialog(dish) {
+    if (!dish) return;
+    const dialog = this.shadowRoot.querySelector('#voteDialog');
+    const modal = this.shadowRoot.querySelector('#voteModal');
+    const voters = new Set(dish.voters || []);
+    modal.innerHTML = `
+      <h2>Wer stimmt für ${this.esc(dish.name)}?</h2>
+      <div class="hint">Bereits gesetzte Stimmen sind markiert. Erneut antippen entfernt die Stimme.</div>
+      <div class="peopleGrid">${this.data.people.map(person => `
+        <button class="personVote ${voters.has(person)?'selected':''}" data-person="${this.esc(person)}">
+          ${voters.has(person)?'✓ ':''}${this.esc(person)}
+        </button>`).join('')}</div>
+      <div class="modalActions"><button id="vClose">Fertig</button></div>`;
+    modal.querySelector('#vClose').onclick = () => dialog.close();
+    modal.querySelectorAll('[data-person]').forEach(button => {
+      button.onclick = async () => {
+        button.disabled = true;
+        try {
+          await this._hass.callService('meal_vote', 'vote', {dish_id:dish.id, person:button.dataset.person});
+          const selected = button.classList.toggle('selected');
+          button.textContent = `${selected?'✓ ':''}${button.dataset.person}`;
+          const current = new Set(dish.voters || []);
+          if (selected) current.add(button.dataset.person); else current.delete(button.dataset.person);
+          dish.voters = [...current].sort((a,b)=>a.localeCompare(b,'de'));
+          dish.vote_count = dish.voters.length;
+        } catch (e) {
+          alert(e.message || e);
+        } finally {
+          button.disabled = false;
+        }
+      };
+    });
+    dialog.addEventListener('close', () => this.load(), {once:true});
+    dialog.showModal();
   }
 
   openDishDialog(dish=null) {

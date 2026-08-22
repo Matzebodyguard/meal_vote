@@ -12,7 +12,7 @@ Lokale Familien-Essenswahl für Home Assistant mit NAS-gestützter Gerichtsliste
 - Bilder auf einem NAS speichern und über Home Assistant anzeigen.
 - CSV auf einer Synology-Freigabe als Stammdatenquelle.
 - Lokaler Home-Assistant-Cache für NAS-Ausfälle.
-- Automatische Synchronisierung alle zwei Minuten.
+- Automatische Synchronisierung alle zehn Minuten.
 - Lovelace-Karte ist ab v0.3 direkt in der Integration enthalten.
 
 ## HACS-Installation
@@ -54,3 +54,7 @@ Nach Installation von v0.3 kann die alte Dashboard-Ressource `/local/meal-vote-c
 Dieses Paket ist für `https://github.com/Matzebodyguard/meal_vote` vorbereitet.
 
 Empfohlene erste Veröffentlichung: GitHub Release/Tag `v0.3.0`.
+
+
+## Abstimmen
+Auf „Stimme geben“ tippen und anschließend die Person auswählen. Markierte Namen haben bereits abgestimmt; erneutes Antippen entfernt die Stimme.
