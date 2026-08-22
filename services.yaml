@@ -1,0 +1,38 @@
+vote:
+  name: Stimme umschalten
+  description: Fügt die Stimme einer Person hinzu oder entfernt sie wieder.
+  fields:
+    dish_id:
+      required: true
+      selector:
+        text:
+    person:
+      required: true
+      selector:
+        text:
+mark_cooked:
+  name: Als gekocht markieren
+  description: Löscht nur die Stimmen dieses Gerichts und aktualisiert die Kochhistorie.
+  fields:
+    dish_id:
+      required: true
+      selector:
+        text:
+reload:
+  name: Gerichte neu laden
+  description: Liest die CSV erneut ein und synchronisiert die Bilder.
+add_dish:
+  name: Gericht hinzufügen
+  description: Fügt ein neues Gericht zur CSV hinzu.
+  fields:
+    name:
+      required: true
+      selector:
+        text:
+    category:
+      selector:
+        text:
+    image:
+      description: Relativer Pfad im NAS-Ordner, z. B. images/pizza.jpg
+      selector:
+        text:

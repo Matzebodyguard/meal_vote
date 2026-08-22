@@ -1,5 +1,7 @@
-__pycache__/
+
+# Python cache
 *.py[cod]
 .DS_Store
-.vscode/
 .idea/
+.vscode/
+__pycache__/
