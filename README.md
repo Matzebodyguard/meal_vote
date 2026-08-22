@@ -71,16 +71,16 @@ Für einen sicheren Cache-Wechsel die Dashboard-Ressource auf `/meal_vote_static
 
 
 ## Wichtig bei Update auf 0.4.8
-Dashboard-Ressource: `/meal_vote_static/meal-vote-card-v0.4.8.js`
+Dashboard-Ressource: `/meal_vote_static/meal-vote-card.js?v=0.4.14`
 
 Kartentyp:
 ```yaml
-type: custom:meal-vote-card-v048
+type: custom:meal-vote-card
 ```
 Die alte `custom:meal-vote-card` kann parallel existieren; für den Test bitte die neue Karte verwenden.
 
 
-## Zutatenverwaltung ab v0.4.13
+## Zutatenverwaltung ab v0.4.14
 Beim Bearbeiten eines Gerichts werden Zutaten nicht mehr als Semikolon-Text gepflegt. Jede Zutat besitzt eigene Felder für Name, Menge und Einheit. Mit `＋ Zutat` können neue Zeilen ergänzt, mit `✕` gelöscht und mit `↑`/`↓` sortiert werden. Die Daten werden weiterhin in `ingredients.csv` gespeichert.
 
 
