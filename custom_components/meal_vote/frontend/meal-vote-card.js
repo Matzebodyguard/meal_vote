@@ -10,7 +10,29 @@ class MealVoteCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    if (!this._loaded) this.load();
+    if (!this._initialized) {
+      this._initialized = true;
+      this.load();
+    }
+  }
+
+  connectedCallback() {
+    if (!this._refreshTimer) {
+      this._refreshTimer = setInterval(() => {
+        if (!this.isConnected || this._loaded || !this._hass) return;
+        const dialog = this.shadowRoot?.querySelector('#dishDialog');
+        const active = this.shadowRoot?.activeElement;
+        const editing = dialog?.open || (active && ['INPUT','SELECT','TEXTAREA'].includes(active.tagName));
+        if (!editing) this.load();
+      }, 120000);
+    }
+  }
+
+  disconnectedCallback() {
+    if (this._refreshTimer) {
+      clearInterval(this._refreshTimer);
+      this._refreshTimer = null;
+    }
   }
 
   async load() {
@@ -47,13 +69,13 @@ class MealVoteCard extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <style>
-        :host{display:block} *{box-sizing:border-box} ha-card{padding:16px}
+        :host{display:block;width:100%;max-width:none} *{box-sizing:border-box} ha-card{padding:16px;width:100%;max-width:none}
         .top{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
         input,select,button{font:inherit;border-radius:12px;border:1px solid var(--divider-color);padding:10px 12px;background:var(--card-background-color);color:var(--primary-text-color)}
         button{cursor:pointer} input{flex:1;min-width:180px}.person{display:flex;align-items:center;gap:6px}
         .status{font-size:.85rem;opacity:.72;margin-bottom:12px}.status.error{color:var(--error-color)}
         .cats{display:flex;gap:8px;overflow:auto;margin-bottom:14px;padding-bottom:2px}.cats button.active{background:var(--primary-color);color:var(--text-primary-color)}
-        .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}.dish{position:relative;border:1px solid var(--divider-color);border-radius:18px;overflow:hidden;background:var(--ha-card-background,var(--card-background-color))}
+        .grid{width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}.dish{position:relative;border:1px solid var(--divider-color);border-radius:18px;overflow:hidden;background:var(--ha-card-background,var(--card-background-color))}
         .dish.inactive{opacity:.58}.pic{width:100%;height:155px;object-fit:cover;background:var(--secondary-background-color);display:block}.placeholder{display:grid;place-items:center;font-size:42px}
         .body{padding:14px}.nameRow{display:flex;gap:8px;align-items:flex-start}.name{font-size:1.22rem;font-weight:700;flex:1}.edit{padding:6px 9px}.meta{opacity:.75;margin-top:3px}.voters{min-height:26px;margin:10px 0;line-height:1.4}
         .actions{display:flex;gap:8px}.vote{flex:1;font-weight:700}.mine{background:var(--primary-color);color:var(--text-primary-color)}.cooked{white-space:nowrap}.add{margin-left:auto}.toggle{white-space:nowrap}

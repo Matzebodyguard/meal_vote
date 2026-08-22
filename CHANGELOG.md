@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2
+- Behebt das wiederholte Neuladen der Dashboard-Karte bei Home-Assistant-State-Updates.
+- Initialer Datenabruf erfolgt nur noch einmal; automatische Kartenaktualisierung maximal alle 2 Minuten.
+- Während Eingabe oder geöffnetem Gericht-Dialog wird kein automatischer Neuaufbau ausgeführt.
+- Karte und Gerichteraster nutzen die verfügbare Dashboard-Breite vollständig.
+
 ## 0.3.1
 - Fix: fehlende `DEFAULT_DATA_PATH`-Konstante ergänzt; behebt den Home-Assistant-Fehler „Import error“ beim Einrichten.
 
