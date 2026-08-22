@@ -18,6 +18,13 @@ class MealVoteCard extends HTMLElement {
       .cats{display:flex;gap:8px;overflow:auto;margin-bottom:14px}.cats button.active{background:var(--primary-color);color:var(--text-primary-color)}.grid{width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}.dish{border:1px solid var(--divider-color);border-radius:18px;overflow:hidden;background:var(--ha-card-background,var(--card-background-color))}.dish.inactive{opacity:.58}.pic{width:100%;height:155px;object-fit:cover;background:var(--secondary-background-color);display:block}.placeholder{display:grid;place-items:center;font-size:42px}.body{padding:14px}.nameRow{display:flex;gap:8px;align-items:flex-start}.name{font-size:1.22rem;font-weight:700;flex:1}.edit{padding:6px 9px}.meta{opacity:.75;margin-top:3px}.history{font-size:.9rem;margin-top:6px;opacity:.85}.voters{min-height:26px;margin:10px 0;line-height:1.4}.actions,.subactions{display:flex;gap:8px;flex-wrap:wrap}.vote{flex:1;font-weight:700}.subactions{margin-top:8px}.subactions button{flex:1}.add{margin-left:auto}
       dialog{border:1px solid var(--divider-color);border-radius:18px;background:var(--card-background-color);color:var(--primary-text-color);width:min(820px,calc(100vw - 24px));padding:0;box-shadow:0 12px 45px rgba(0,0,0,.35)}dialog::backdrop{background:rgba(0,0,0,.5)}.modal{padding:18px}.modal h2{margin:0 0 16px}.field{display:flex;flex-direction:column;gap:6px;margin:12px 0}.field input,.field textarea{width:100%}.field textarea{min-height:120px}.check{display:flex;gap:8px;align-items:center}.modalActions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}.danger{color:var(--error-color)}.preview{width:100%;height:180px;object-fit:cover;border-radius:12px;background:var(--secondary-background-color);margin-top:8px}.hint{font-size:.85rem;opacity:.7}.peopleGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:14px}.personVote{min-height:58px;font-weight:700;font-size:1.05rem}.personVote.selected{background:var(--primary-color);color:var(--text-primary-color)}.ingredientList{display:grid;gap:8px}.ingredient{padding:10px;border:1px solid var(--divider-color);border-radius:10px}.empty{padding:28px;text-align:center;opacity:.7}.ingredientEditor{display:grid;gap:9px;margin-top:8px}.ingredientHead,.ingredientRow{display:grid;grid-template-columns:minmax(180px,2fr) minmax(90px,.7fr) minmax(110px,.8fr) auto;gap:8px;align-items:center}.ingredientHead{font-size:.78rem;font-weight:700;opacity:.65;padding:0 4px}.ingredientRow{border:1px solid var(--divider-color);border-radius:12px;padding:8px;background:var(--secondary-background-color)}.ingredientRow input{min-width:0;width:100%}.ingredientTools{display:flex;gap:4px}.ingredientTools button{padding:8px 9px;min-width:38px}.ingredientAdd{width:100%;margin-top:8px;border-style:dashed;font-weight:700}.ingredientEmpty{padding:14px;border:1px dashed var(--divider-color);border-radius:12px;text-align:center;opacity:.7}
       @media(max-width:600px){ha-card{padding:10px}.pic{height:130px}.actions,.subactions{flex-direction:column}.add{margin-left:0}.top>*{flex:1 1 auto}.ingredientHead{display:none}.ingredientRow{grid-template-columns:1fr 90px 110px}.ingredientTools{grid-column:1/-1;justify-content:flex-end}}
+
+      .ingredient-name-wrap{position:relative;min-width:0}
+      .ingredient-suggestions{position:absolute;z-index:100;left:0;right:0;top:calc(100% + 4px);background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#ddd);border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.2);max-height:220px;overflow:auto;display:none}
+      .ingredient-suggestions.open{display:block}
+      .ingredient-suggestion{padding:10px 12px;cursor:pointer;display:flex;justify-content:space-between;gap:10px}
+      .ingredient-suggestion:hover{background:var(--secondary-background-color,#f5f5f5)}
+      .ingredient-suggestion small{color:var(--secondary-text-color);white-space:nowrap}
     </style><ha-card>
       <div class="top"><input class="search" id="search" placeholder="🔎 Gericht, Kategorie, Person oder Zutat suchen…" value="${this.esc(this._search)}"><select id="sort"><option value="votes">Meiste Stimmen</option><option value="oldest">Lange nicht gekocht</option><option value="recent">Zuletzt gekocht</option><option value="name">Name</option></select><span style="font-size:.8rem;opacity:.7;font-weight:700">UI 0.4.12</span><button id="reload">↻ Sync</button><button id="inactive">${this._showInactive?'Aktive':'Verwaltung'}</button><button id="add" class="add">＋ Gericht</button></div>
       <div class="status ${sync.error?'error':''}">${this.esc(syncText)} · automatisch alle ${sync.interval_minutes||10} Min.</div>
@@ -37,14 +44,81 @@ class MealVoteCard extends HTMLElement {
   openShoppingDialog(dish){if(!dish)return;const dialog=this.shadowRoot.querySelector('#shoppingDialog'),modal=this.shadowRoot.querySelector('#shoppingModal');const items=dish.ingredients||[];modal.innerHTML=`<h2>🛒 Einkaufsliste – ${this.esc(dish.name)}</h2><div class="hint">Hake Zutaten ab, die bereits zu Hause sind.</div><div class="ingredientList" style="margin-top:12px">${items.map((i,idx)=>`<label class="ingredient check"><input type="checkbox" data-shop-index="${idx}" checked><span><strong>${this.esc([i.amount,i.unit].filter(Boolean).join(' '))}</strong> ${this.esc(i.name)}</span></label>`).join('')}</div><div class="modalActions"><button id="sNone">Keine</button><button id="sAll">Alle</button><button id="sCancel">Abbrechen</button><button id="sAdd">Auswahl hinzufügen</button></div>`;modal.querySelector('#sCancel').onclick=()=>dialog.close();modal.querySelector('#sAll').onclick=()=>modal.querySelectorAll('[data-shop-index]').forEach(c=>c.checked=true);modal.querySelector('#sNone').onclick=()=>modal.querySelectorAll('[data-shop-index]').forEach(c=>c.checked=false);modal.querySelector('#sAdd').onclick=async()=>{const indices=[...modal.querySelectorAll('[data-shop-index]:checked')].map(c=>Number(c.dataset.shopIndex));if(!indices.length){alert('Bitte mindestens eine Zutat auswählen.');return;}modal.querySelector('#sAdd').disabled=true;try{await this.addToShopping(dish,indices);dialog.close();}finally{modal.querySelector('#sAdd').disabled=false;}};dialog.showModal();}
   async addToShopping(dish,ingredientIndices=null){try{const payload={dish_id:dish.id};if(ingredientIndices)payload.ingredient_indices=ingredientIndices;const r=await this.ws('meal_vote/add_to_shopping_list',payload);const parts=[];if(r.added)parts.push(`${r.added} neu`);if(r.updated)parts.push(`${r.updated} ergänzt`);if(r.already_present)parts.push(`${r.already_present} bereits vorhanden`);alert(`Einkaufsliste ${r.todo_entity||this.data?.todo_entity||''}: ${parts.join(' · ')||'keine Änderung'}. Vorher erkannt: ${r.existing_count ?? '?'} offene Einträge.`);}catch(e){alert(e.message||e);}}
   parseIngredients(text){return String(text||'').split('\n').map(l=>l.trim()).filter(Boolean).map(line=>{const p=line.split(';').map(x=>x.trim());if(p.length>=3)return{amount:p[0],unit:p[1],name:p.slice(2).join(';')};return{name:line,amount:'',unit:''};});}
-  ingredientEditorHtml(items){const units=['g','kg','ml','l','Stück','Dose','Packung','EL','TL','Prise','Bund'];return `<div class="ingredientHead"><span>Zutat</span><span>Menge</span><span>Einheit</span><span></span></div><div class="ingredientEditor" id="ingredientEditor">${items.length?items.map((i,idx)=>`<div class="ingredientRow" data-ing-row="${idx}"><input data-ing-name="${idx}" placeholder="z. B. Tomaten" value="${this.esc(i.name||'')}"><input data-ing-amount="${idx}" inputmode="decimal" placeholder="z. B. 500" value="${this.esc(i.amount||'')}"><input data-ing-unit="${idx}" list="ingredientUnits" placeholder="z. B. g" value="${this.esc(i.unit||'')}"><div class="ingredientTools"><button type="button" data-ing-up="${idx}" title="Nach oben" ${idx===0?'disabled':''}>↑</button><button type="button" data-ing-down="${idx}" title="Nach unten" ${idx===items.length-1?'disabled':''}>↓</button><button type="button" data-ing-delete="${idx}" class="danger" title="Zutat löschen">✕</button></div></div>`).join(''):'<div class="ingredientEmpty">Noch keine Zutaten. Mit „＋ Zutat“ kannst du die erste anlegen.</div>'}</div><datalist id="ingredientUnits">${units.map(u=>`<option value="${u}"></option>`).join('')}</datalist><button type="button" id="addIngredient" class="ingredientAdd">＋ Zutat</button>`;}
+
+  ingredientCatalog(){
+    const catalog = new Map();
+    for (const dish of (this.data?.dishes || [])) {
+      for (const ing of (dish.ingredients || [])) {
+        const name = String(ing.name || '').trim();
+        if (!name) continue;
+        const key = name.toLocaleLowerCase('de-DE');
+        if (!catalog.has(key)) catalog.set(key, {name, units:new Map(), count:0});
+        const item = catalog.get(key);
+        item.count++;
+        const unit = String(ing.unit || '').trim();
+        if (unit) item.units.set(unit, (item.units.get(unit) || 0) + 1);
+      }
+    }
+    return [...catalog.values()].map(item => ({
+      name: item.name,
+      unit: [...item.units.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0] || '',
+      count: item.count
+    })).sort((a,b)=>b.count-a.count || a.name.localeCompare(b.name,'de'));
+  }
+
+  ingredientMatches(value){
+    const q = String(value || '').trim().toLocaleLowerCase('de-DE');
+    const catalog = this.ingredientCatalog();
+    if (!q) return catalog.slice(0,8);
+    return catalog
+      .filter(item => item.name.toLocaleLowerCase('de-DE').includes(q))
+      .slice(0,8);
+  }
+
+  wireIngredientAutocomplete(row){
+    const input = row.querySelector('[data-ing-name]');
+    const unit = row.querySelector('[data-ing-unit]');
+    const box = row.querySelector('.ingredient-suggestions');
+    if (!input || !box) return;
+
+    const renderSuggestions = () => {
+      const matches = this.ingredientMatches(input.value);
+      box.innerHTML = matches.map(item =>
+        `<div class="ingredient-suggestion"
+              data-suggest-name="${this.esc(item.name)}"
+              data-suggest-unit="${this.esc(item.unit)}">
+          <span>${this.esc(item.name)}</span>
+          <small>${item.unit ? this.esc(item.unit) : ''}</small>
+        </div>`
+      ).join('');
+
+      box.classList.toggle('open', matches.length > 0 && document.activeElement === input);
+
+      box.querySelectorAll('.ingredient-suggestion').forEach(el => {
+        el.addEventListener('mousedown', ev => {
+          ev.preventDefault();
+          input.value = el.dataset.suggestName || '';
+          if (unit && !unit.value) unit.value = el.dataset.suggestUnit || '';
+          box.classList.remove('open');
+          input.dispatchEvent(new Event('input', {bubbles:true}));
+          if (unit) unit.dispatchEvent(new Event('input', {bubbles:true}));
+        });
+      });
+    };
+
+    input.addEventListener('input', renderSuggestions);
+    input.addEventListener('focus', renderSuggestions);
+    input.addEventListener('blur', () => setTimeout(() => box.classList.remove('open'), 120));
+  }
+
+  ingredientEditorHtml(items){const units=['g','kg','ml','l','Stück','Dose','Packung','EL','TL','Prise','Bund'];return `<div class="ingredientHead"><span>Zutat</span><span>Menge</span><span>Einheit</span><span></span></div><div class="ingredientEditor" id="ingredientEditor">${items.length?items.map((i,idx)=>`<div class="ingredientRow" data-ing-row="${idx}"><div class="ingredient-name-wrap"><input data-ing-name="${idx}" autocomplete="off" placeholder="z. B. Tomaten" value="${this.esc(i.name||'')}"><div class="ingredient-suggestions"></div></div><input data-ing-amount="${idx}" inputmode="decimal" placeholder="z. B. 500" value="${this.esc(i.amount||'')}"><input data-ing-unit="${idx}" list="ingredientUnits" placeholder="z. B. g" value="${this.esc(i.unit||'')}"><div class="ingredientTools"><button type="button" data-ing-up="${idx}" title="Nach oben" ${idx===0?'disabled':''}>↑</button><button type="button" data-ing-down="${idx}" title="Nach unten" ${idx===items.length-1?'disabled':''}>↓</button><button type="button" data-ing-delete="${idx}" class="danger" title="Zutat löschen">✕</button></div></div>`).join(''):'<div class="ingredientEmpty">Noch keine Zutaten. Mit „＋ Zutat“ kannst du die erste anlegen.</div>'}</div><datalist id="ingredientUnits">${units.map(u=>`<option value="${u}"></option>`).join('')}</datalist><button type="button" id="addIngredient" class="ingredientAdd">＋ Zutat</button>`;}
   openDishDialog(dish=null){
     const dialog=this.shadowRoot.querySelector('#dishDialog'),modal=this.shadowRoot.querySelector('#dishModal'),editing=!!dish;
     const ingredientDraft=(dish?.ingredients||[]).map(i=>({name:i.name||'',amount:i.amount||'',unit:i.unit||''}));
     modal.innerHTML=`<h2>${editing?'Gericht bearbeiten':'Neues Gericht'}</h2><div class="field"><label>Name</label><input id="dName" value="${this.esc(dish?.name||'')}"></div><div class="field"><label>Kategorie</label><input id="dCategory" value="${this.esc(dish?.category||'')}"></div><div class="field"><label>Zutaten</label><div id="ingredientEditorWrap"></div><span class="hint">Menge und Einheit sind optional. Die Reihenfolge wird auch in der Zutatenansicht verwendet.</span></div><div class="field"><label>Bildpfad auf dem NAS</label><input id="dImage" value="${this.esc(dish?.image||'')}" placeholder="images/lasagne.jpg"></div><div class="field"><label>Bild hochladen</label><input id="dFile" type="file" accept="image/jpeg,image/png,image/webp">${dish?.image_url?`<img class="preview" src="${this.esc(dish.image_url)}">`:''}</div>${editing?`<label class="check"><input id="dActive" type="checkbox" ${dish.active!==false?'checked':''}> Gericht aktiv</label>`:''}<div class="modalActions">${editing?'<button id="dDelete" class="danger">Endgültig löschen</button>':''}<button id="dCancel">Abbrechen</button><button id="dSave">Speichern</button></div>`;
     const wrap=modal.querySelector('#ingredientEditorWrap');
     const syncDraftFromInputs=()=>{ingredientDraft.forEach((item,idx)=>{const n=wrap.querySelector(`[data-ing-name="${idx}"]`),a=wrap.querySelector(`[data-ing-amount="${idx}"]`),u=wrap.querySelector(`[data-ing-unit="${idx}"]`);if(n)item.name=n.value;if(a)item.amount=a.value;if(u)item.unit=u.value;});};
-    const renderIngredients=()=>{wrap.innerHTML=this.ingredientEditorHtml(ingredientDraft);wrap.querySelectorAll('[data-ing-name]').forEach(el=>el.oninput=()=>ingredientDraft[Number(el.dataset.ingName)].name=el.value);wrap.querySelectorAll('[data-ing-amount]').forEach(el=>el.oninput=()=>ingredientDraft[Number(el.dataset.ingAmount)].amount=el.value);wrap.querySelectorAll('[data-ing-unit]').forEach(el=>el.oninput=()=>ingredientDraft[Number(el.dataset.ingUnit)].unit=el.value);wrap.querySelectorAll('[data-ing-delete]').forEach(b=>b.onclick=()=>{syncDraftFromInputs();ingredientDraft.splice(Number(b.dataset.ingDelete),1);renderIngredients();});wrap.querySelectorAll('[data-ing-up]').forEach(b=>b.onclick=()=>{syncDraftFromInputs();const i=Number(b.dataset.ingUp);if(i>0){[ingredientDraft[i-1],ingredientDraft[i]]=[ingredientDraft[i],ingredientDraft[i-1]];renderIngredients();}});wrap.querySelectorAll('[data-ing-down]').forEach(b=>b.onclick=()=>{syncDraftFromInputs();const i=Number(b.dataset.ingDown);if(i<ingredientDraft.length-1){[ingredientDraft[i+1],ingredientDraft[i]]=[ingredientDraft[i],ingredientDraft[i+1]];renderIngredients();}});wrap.querySelector('#addIngredient').onclick=()=>{syncDraftFromInputs();ingredientDraft.push({name:'',amount:'',unit:''});renderIngredients();setTimeout(()=>wrap.querySelector(`[data-ing-name="${ingredientDraft.length-1}"]`)?.focus(),0);};};
+    const renderIngredients=()=>{wrap.innerHTML=this.ingredientEditorHtml(ingredientDraft);wrap.querySelectorAll('[data-ing-name]').forEach(el=>el.oninput=()=>ingredientDraft[Number(el.dataset.ingName)].name=el.value);wrap.querySelectorAll('[data-ing-amount]').forEach(el=>el.oninput=()=>ingredientDraft[Number(el.dataset.ingAmount)].amount=el.value);wrap.querySelectorAll('[data-ing-unit]').forEach(el=>el.oninput=()=>ingredientDraft[Number(el.dataset.ingUnit)].unit=el.value);wrap.querySelectorAll('[data-ing-row]').forEach(row=>this.wireIngredientAutocomplete(row));wrap.querySelectorAll('[data-ing-delete]').forEach(b=>b.onclick=()=>{syncDraftFromInputs();ingredientDraft.splice(Number(b.dataset.ingDelete),1);renderIngredients();});wrap.querySelectorAll('[data-ing-up]').forEach(b=>b.onclick=()=>{syncDraftFromInputs();const i=Number(b.dataset.ingUp);if(i>0){[ingredientDraft[i-1],ingredientDraft[i]]=[ingredientDraft[i],ingredientDraft[i-1]];renderIngredients();}});wrap.querySelectorAll('[data-ing-down]').forEach(b=>b.onclick=()=>{syncDraftFromInputs();const i=Number(b.dataset.ingDown);if(i<ingredientDraft.length-1){[ingredientDraft[i+1],ingredientDraft[i]]=[ingredientDraft[i],ingredientDraft[i+1]];renderIngredients();}});wrap.querySelector('#addIngredient').onclick=()=>{syncDraftFromInputs();ingredientDraft.push({name:'',amount:'',unit:''});renderIngredients();setTimeout(()=>wrap.querySelector(`[data-ing-name="${ingredientDraft.length-1}"]`)?.focus(),0);};};
     renderIngredients();
     modal.querySelector('#dCancel').onclick=()=>dialog.close();
     if(editing)modal.querySelector('#dDelete').onclick=async()=>{if(confirm(`„${dish.name}“ wirklich endgültig löschen?`)){try{await this.ws('meal_vote/delete_dish',{dish_id:dish.id});dialog.close();await this.load();}catch(e){alert(e.message||e);}}};
