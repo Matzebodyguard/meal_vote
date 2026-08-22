@@ -4,6 +4,7 @@ import base64
 import csv
 import os
 import re
+from decimal import Decimal, InvalidOperation
 import shutil
 import uuid
 from datetime import datetime
@@ -210,26 +211,204 @@ class MealVoteManager:
         self.state["history"].pop(dish_id, None)
         await self.async_reload()
 
-    async def async_add_to_shopping_list(self, dish_id: str):
+    @staticmethod
+    def _normalize_food_name(value: str) -> str:
+        """Normalize ingredient names for duplicate detection."""
+        value = re.sub(r"[^\wäöüÄÖÜß]+", " ", (value or "").strip(), flags=re.UNICODE)
+        return re.sub(r"\s+", " ", value).strip().casefold()
+
+    @classmethod
+    def _food_keys_match(cls, left: str, right: str) -> bool:
+        """Match common singular/plural spellings without being overly fuzzy."""
+        left = cls._normalize_food_name(left)
+        right = cls._normalize_food_name(right)
+        if not left or not right:
+            return False
+        if left == right:
+            return True
+
+        def variants(value: str) -> set[str]:
+            out = {value}
+            words = value.split()
+            if not words:
+                return out
+            last = words[-1]
+            stems = {last}
+            for suffix in ("en", "n", "e", "s"):
+                if len(last) > len(suffix) + 2 and last.endswith(suffix):
+                    stems.add(last[:-len(suffix)])
+            for stem in stems:
+                out.add(" ".join([*words[:-1], stem]))
+            return out
+
+        return bool(variants(left) & variants(right))
+
+    @staticmethod
+    def _normalize_unit(value: str) -> str:
+        """Normalize common units while keeping unknown units distinct."""
+        unit = re.sub(r"[.]", "", (value or "").strip()).casefold()
+        aliases = {
+            "gramm": "g", "gram": "g", "g": "g",
+            "kilogramm": "kg", "kilogram": "kg", "kg": "kg",
+            "milliliter": "ml", "millilitre": "ml", "ml": "ml",
+            "liter": "l", "litre": "l", "l": "l",
+            "stück": "stück", "stueck": "stück", "stk": "stück", "st": "stück",
+            "dose": "dose", "dosen": "dose",
+            "packung": "packung", "packungen": "packung", "pkg": "packung",
+            "el": "el", "esslöffel": "el", "essloeffel": "el",
+            "tl": "tl", "teelöffel": "tl", "teeloeffel": "tl",
+        }
+        return aliases.get(unit, unit)
+
+    @staticmethod
+    def _decimal(value: str):
+        try:
+            return Decimal((value or "").strip().replace(",", "."))
+        except (InvalidOperation, AttributeError):
+            return None
+
+    @staticmethod
+    def _format_amount(value: Decimal) -> str:
+        text = format(value.normalize(), "f")
+        if "." in text:
+            text = text.rstrip("0").rstrip(".")
+        return text.replace(".", ",")
+
+    @classmethod
+    def _merge_quantities(cls, old_amount, old_unit: str, new_amount, new_unit: str):
+        """Return (amount, unit) when quantities can safely be combined."""
+        if old_amount is None or new_amount is None:
+            return None
+        old_unit = cls._normalize_unit(old_unit)
+        new_unit = cls._normalize_unit(new_unit)
+        # A manually entered count such as "2 Zwiebeln" is equivalent to
+        # the recipe unit "Stück" for merge purposes.
+        if {old_unit, new_unit} <= {"", "stück"}:
+            return old_amount + new_amount, "stück" if "stück" in {old_unit, new_unit} else ""
+        if old_unit == new_unit:
+            return old_amount + new_amount, old_unit
+        weight = {"g": Decimal("1"), "kg": Decimal("1000")}
+        volume = {"ml": Decimal("1"), "l": Decimal("1000")}
+        for conversion, base_unit in ((weight, "g"), (volume, "ml")):
+            if old_unit in conversion and new_unit in conversion:
+                total = old_amount * conversion[old_unit] + new_amount * conversion[new_unit]
+                return total, base_unit
+        return None
+
+    async def _async_open_todo_items(self):
+        if not self.hass.services.has_service("todo", "get_items"):
+            raise ValueError("Der Home-Assistant-Dienst 'todo.get_items' ist nicht verfügbar")
+        response = await self.hass.services.async_call(
+            "todo",
+            "get_items",
+            {"status": "needs_action"},
+            target={"entity_id": self.todo_entity},
+            blocking=True,
+            return_response=True,
+        )
+        entity_data = (response or {}).get(self.todo_entity, {})
+        if not isinstance(entity_data, dict):
+            return []
+        items = entity_data.get("items", [])
+        return items if isinstance(items, list) else []
+
+    @classmethod
+    def _parse_shopping_summary(cls, summary: str):
+        """Parse shopping entries created here and common manually entered forms."""
+        summary = re.sub(r"\s+", " ", (summary or "").strip())
+        # amount + unit + ingredient, e.g. 500 g Hackfleisch
+        match = re.match(r"^(\d+(?:[.,]\d+)?)\s+([^\s]+)\s+(.+)$", summary)
+        if match:
+            return {
+                "amount": cls._decimal(match.group(1)),
+                "unit": cls._normalize_unit(match.group(2)),
+                "name": match.group(3).strip(),
+            }
+        # amount + ingredient without unit, e.g. 2 Zwiebeln
+        match = re.match(r"^(\d+(?:[.,]\d+)?)\s+(.+)$", summary)
+        if match:
+            return {
+                "amount": cls._decimal(match.group(1)),
+                "unit": "",
+                "name": match.group(2).strip(),
+            }
+        return {"amount": None, "unit": "", "name": summary}
+
+    async def async_add_to_shopping_list(self, dish_id: str, ingredient_indices: list[int] | None = None):
         if dish_id not in self.dishes:
             raise ValueError("Unbekanntes Gericht")
-        ingredients = self.dishes[dish_id].get("ingredients", [])
+        all_ingredients = self.dishes[dish_id].get("ingredients", [])
+        ingredients = all_ingredients
+        if ingredient_indices is not None:
+            valid_indices = []
+            for raw_index in ingredient_indices:
+                try:
+                    idx = int(raw_index)
+                except (TypeError, ValueError):
+                    continue
+                if 0 <= idx < len(all_ingredients):
+                    valid_indices.append(idx)
+            ingredients = [all_ingredients[i] for i in valid_indices]
         if not ingredients:
-            raise ValueError("Für dieses Gericht sind keine Zutaten hinterlegt")
+            raise ValueError("Bitte mindestens eine Zutat auswählen")
         if not self.hass.services.has_service("todo", "add_item"):
             raise ValueError("Der Home-Assistant-Dienst 'todo.add_item' ist nicht verfügbar")
         if self.hass.states.get(self.todo_entity) is None:
             raise ValueError(f"Die To-do-Liste '{self.todo_entity}' wurde nicht gefunden")
-        for item in ingredients:
-            prefix = " ".join(x for x in [item.get("amount", ""), item.get("unit", "")] if x).strip()
-            text = f"{prefix} {item['name']}".strip()
+
+        open_items = await self._async_open_todo_items()
+        existing = []
+        for todo_item in open_items:
+            summary = str(todo_item.get("summary", "") or "").strip()
+            parsed = self._parse_shopping_summary(summary)
+            parsed["uid"] = todo_item.get("uid")
+            parsed["summary"] = summary
+            parsed["key"] = self._normalize_food_name(parsed["name"])
+            existing.append(parsed)
+
+        added = updated = already_present = 0
+        for ingredient in ingredients:
+            name = str(ingredient.get("name") or "").strip()
+            if not name:
+                continue
+            amount_text = str(ingredient.get("amount") or "").strip()
+            raw_unit = str(ingredient.get("unit") or "").strip()
+            unit = self._normalize_unit(raw_unit)
+            amount = self._decimal(amount_text)
+            key = self._normalize_food_name(name)
+            match = next((item for item in existing if self._food_keys_match(item.get("name", ""), name)), None)
+
+            if match is not None:
+                merged = self._merge_quantities(match.get("amount"), match.get("unit", ""), amount, unit)
+                if merged and self.hass.services.has_service("todo", "update_item"):
+                    total, result_unit = merged
+                    quantity = self._format_amount(total)
+                    rename = " ".join(x for x in [quantity, result_unit, name] if x).strip()
+                    await self.hass.services.async_call(
+                        "todo",
+                        "update_item",
+                        {"item": match.get("uid") or match["summary"], "rename": rename},
+                        target={"entity_id": self.todo_entity},
+                        blocking=True,
+                    )
+                    match.update(amount=total, unit=result_unit, name=name, summary=rename, key=key)
+                    updated += 1
+                    continue
+                already_present += 1
+                continue
+
+            text = " ".join(x for x in [amount_text, raw_unit, name] if x).strip()
             await self.hass.services.async_call(
                 "todo",
                 "add_item",
-                {"entity_id": self.todo_entity, "item": text},
+                {"item": text},
+                target={"entity_id": self.todo_entity},
                 blocking=True,
             )
-        return len(ingredients)
+            existing.append({"key": key, "amount": amount, "unit": unit, "name": name, "summary": text, "uid": None})
+            added += 1
+
+        return {"count": len(ingredients), "added": added, "updated": updated, "already_present": already_present, "existing_count": len(open_items), "todo_entity": self.todo_entity}
 
     async def async_upload_image(self, dish_id: str, filename: str, data_url: str) -> str:
         if dish_id not in self.dishes:

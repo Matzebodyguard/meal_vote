@@ -141,11 +141,15 @@ async def ws_upload_image(hass, connection, msg):
         connection.send_error(msg["id"], "upload_failed", str(err))
 
 
-@websocket_api.websocket_command({vol.Required("type"): "meal_vote/add_to_shopping_list", vol.Required("dish_id"): str})
+@websocket_api.websocket_command({
+    vol.Required("type"): "meal_vote/add_to_shopping_list",
+    vol.Required("dish_id"): str,
+    vol.Optional("ingredient_indices"): [vol.Coerce(int)],
+})
 @websocket_api.async_response
 async def ws_add_to_shopping_list(hass, connection, msg):
     try:
-        count = await _manager(hass).async_add_to_shopping_list(msg["dish_id"])
-        connection.send_result(msg["id"], {"ok": True, "count": count})
+        result = await _manager(hass).async_add_to_shopping_list(msg["dish_id"], msg.get("ingredient_indices"))
+        connection.send_result(msg["id"], {"ok": True, **result})
     except (ValueError, OSError) as err:
         connection.send_error(msg["id"], "shopping_list_failed", str(err))
