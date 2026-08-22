@@ -1,3 +1,10 @@
+# Changelog
+
+## 0.4.8
+- Neuer eindeutiger Lovelace-Kartentyp `meal-vote-card-v048`, damit alte gecachte Ressourcen die neue UI nicht mehr blockieren.
+- Sichtbares UI-Badge `UI 0.4.8`.
+- Einkaufs-Auswahldialog und Mengen-Diagnose aus 0.4.7 enthalten.
+
 ## 0.4.7
 
 - Frontend-Ressource wieder auf stabilen Pfad `meal-vote-card.js` zurückgestellt.
@@ -5,7 +12,6 @@
 - Registrierung des Custom Elements gegen doppelte Definition abgesichert.
 - Cache-Busting erfolgt über `?v=0.4.7`.
 
-# Changelog
 
 ## 0.4.6
 - Frontend zusätzlich unter eindeutig versionierter Datei `meal-vote-card-v0.4.6.js`.

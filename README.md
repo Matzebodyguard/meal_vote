@@ -67,4 +67,14 @@ Für v0.4.5 die Dashboard-Ressource einmal auf `/meal_vote_static/meal-vote-card
 
 
 ## Frontend-Ressource ab 0.4.6
-Für einen sicheren Cache-Wechsel die Dashboard-Ressource auf `/meal_vote_static/meal-vote-card.js?v=0.4.7` setzen und alte `meal-vote-card.js`-Ressourcen entfernen. Danach den Browser vollständig neu laden. In der Karte muss `UI 0.4.6` sichtbar sein.
+Für einen sicheren Cache-Wechsel die Dashboard-Ressource auf `/meal_vote_static/meal-vote-card.js?v=0.4.8` setzen und alte `meal-vote-card.js`-Ressourcen entfernen. Danach den Browser vollständig neu laden. In der Karte muss `UI 0.4.6` sichtbar sein.
+
+
+## Wichtig bei Update auf 0.4.8
+Dashboard-Ressource: `/meal_vote_static/meal-vote-card-v0.4.8.js`
+
+Kartentyp:
+```yaml
+type: custom:meal-vote-card-v048
+```
+Die alte `custom:meal-vote-card` kann parallel existieren; für den Test bitte die neue Karte verwenden.
