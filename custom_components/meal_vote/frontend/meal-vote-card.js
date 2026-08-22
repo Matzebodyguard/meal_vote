@@ -90,7 +90,7 @@ class MealVoteCard extends HTMLElement {
           <button id="inactive" class="toggle">${this._showInactive?'Aktive':'Verwaltung'}</button>
           <button id="add" class="add">＋ Gericht</button>
         </div>
-        <div class="status ${sync.error?'error':''}">${this.esc(syncText)} · automatisch alle ${sync.interval_minutes||2} Min.</div>
+        <div class="status ${sync.error?'error':''}">${this.esc(syncText)} · automatisch alle ${sync.interval_minutes||10} Min.</div>
         <div class="cats">${cats.map(c=>`<button data-cat="${this.esc(c)}" class="${c===this._category?'active':''}">${this.esc(c)}</button>`).join('')}</div>
         <div class="grid">${dishes.length ? dishes.map(d=>this.dishHtml(d)).join('') : '<div class="empty">Keine Gerichte gefunden.</div>'}</div>
         <dialog id="dishDialog"><div class="modal" id="dishModal"></div></dialog>

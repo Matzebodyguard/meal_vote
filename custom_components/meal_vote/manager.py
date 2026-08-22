@@ -12,7 +12,7 @@ from pathlib import Path
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
-from .const import CSV_NAME, IMAGE_CACHE_DIR, MAX_IMAGE_BYTES, STORE_KEY, STORE_VERSION
+from .const import CSV_NAME, IMAGE_CACHE_DIR, MAX_IMAGE_BYTES, STORE_KEY, STORE_VERSION, SYNC_MINUTES
 
 _SAFE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
@@ -202,5 +202,5 @@ class MealVoteManager:
         return {
             "people": self.people,
             "dishes": out,
-            "sync": {"last_ok": self.last_sync_ok, "error": self.last_sync_error, "interval_minutes": 2},
+            "sync": {"last_ok": self.last_sync_ok, "error": self.last_sync_error, "interval_minutes": SYNC_MINUTES},
         }
