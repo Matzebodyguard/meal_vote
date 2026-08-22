@@ -60,3 +60,7 @@ Vor dem Übertragen liest Essenswahl die offenen Einträge der konfigurierten To
 
 ### Zutaten vor dem Einkauf auswählen
 Beim Klick auf **Einkaufsliste** öffnet sich ab v0.4.3 zuerst ein Auswahlfenster. Alle Zutaten sind standardmäßig markiert. Zutaten, die bereits zu Hause sind, können abgewählt werden. Nur die verbleibende Auswahl wird an die konfigurierte To-do-Liste übertragen.
+
+
+### Frontend-Cache bei Updates
+Für v0.4.5 die Dashboard-Ressource einmal auf `/meal_vote_static/meal-vote-card.js?v=0.4.5` setzen. Dadurch wird garantiert die neue Karte geladen. In der Überschrift erscheint `UI 0.4.5` als Kontrolle.

@@ -214,7 +214,34 @@ class MealVoteManager:
     @staticmethod
     def _normalize_food_name(value: str) -> str:
         """Normalize ingredient names for duplicate detection."""
-        return re.sub(r"\s+", " ", (value or "").strip()).casefold()
+        value = re.sub(r"[^\wäöüÄÖÜß]+", " ", (value or "").strip(), flags=re.UNICODE)
+        return re.sub(r"\s+", " ", value).strip().casefold()
+
+    @classmethod
+    def _food_keys_match(cls, left: str, right: str) -> bool:
+        """Match common singular/plural spellings without being overly fuzzy."""
+        left = cls._normalize_food_name(left)
+        right = cls._normalize_food_name(right)
+        if not left or not right:
+            return False
+        if left == right:
+            return True
+
+        def variants(value: str) -> set[str]:
+            out = {value}
+            words = value.split()
+            if not words:
+                return out
+            last = words[-1]
+            stems = {last}
+            for suffix in ("en", "n", "e", "s"):
+                if len(last) > len(suffix) + 2 and last.endswith(suffix):
+                    stems.add(last[:-len(suffix)])
+            for stem in stems:
+                out.add(" ".join([*words[:-1], stem]))
+            return out
+
+        return bool(variants(left) & variants(right))
 
     @staticmethod
     def _normalize_unit(value: str) -> str:
@@ -254,6 +281,10 @@ class MealVoteManager:
             return None
         old_unit = cls._normalize_unit(old_unit)
         new_unit = cls._normalize_unit(new_unit)
+        # A manually entered count such as "2 Zwiebeln" is equivalent to
+        # the recipe unit "Stück" for merge purposes.
+        if {old_unit, new_unit} <= {"", "stück"}:
+            return old_amount + new_amount, "stück" if "stück" in {old_unit, new_unit} else ""
         if old_unit == new_unit:
             return old_amount + new_amount, old_unit
         weight = {"g": Decimal("1"), "kg": Decimal("1000")}
@@ -345,7 +376,7 @@ class MealVoteManager:
             unit = self._normalize_unit(raw_unit)
             amount = self._decimal(amount_text)
             key = self._normalize_food_name(name)
-            match = next((item for item in existing if item["key"] == key), None)
+            match = next((item for item in existing if self._food_keys_match(item.get("name", ""), name)), None)
 
             if match is not None:
                 merged = self._merge_quantities(match.get("amount"), match.get("unit", ""), amount, unit)

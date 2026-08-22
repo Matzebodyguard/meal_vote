@@ -1,3 +1,9 @@
+## 0.4.5
+- Frontend-Version sichtbar gemacht, damit Browser-Cache-Probleme sofort erkennbar sind.
+- Einkaufsliste: robustere Erkennung vorhandener Zutaten inklusive häufiger Singular-/Pluralformen.
+- Mengen ohne Einheit und `Stück` können gemeinsam addiert werden (z. B. `2 Zwiebeln` + `1 Stück Zwiebel`).
+- Wichtig nach Update: Dashboard-Ressource mit `?v=0.4.5` laden, um den Frontend-Cache sicher zu umgehen.
+
 ## v0.4.3
 - Auswahl-Dialog vor dem Übertragen von Zutaten zur Einkaufsliste.
 - Zutaten können einzeln abgewählt werden; standardmäßig sind alle ausgewählt.
