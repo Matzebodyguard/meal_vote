@@ -1,0 +1,20 @@
+{
+  "title": "Meal Vote",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Meal Vote",
+        "description": "Choose the mounted NAS folder and the people who can vote.",
+        "data": {
+          "data_path": "Data folder",
+          "people": "People (comma separated)"
+        }
+      }
+    },
+    "error": {"path_not_found": "The folder was not found."},
+    "abort": {"already_configured": "Meal Vote is already configured."}
+  },
+  "options": {
+    "step": {"init": {"title": "Meal Vote options", "data": {"people": "People (comma separated)"}}}
+  }
+}

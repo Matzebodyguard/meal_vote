@@ -1,0 +1,31 @@
+{
+  "title": "Essenswahl",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Essenswahl einrichten",
+        "description": "Wähle den eingebundenen Synology-Ordner und die abstimmenden Personen.",
+        "data": {
+          "data_path": "Datenordner",
+          "people": "Personen (kommagetrennt)"
+        }
+      }
+    },
+    "error": {
+      "path_not_found": "Der angegebene Ordner wurde nicht gefunden."
+    },
+    "abort": {
+      "already_configured": "Essenswahl ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Essenswahl Optionen",
+        "data": {
+          "people": "Personen (kommagetrennt)"
+        }
+      }
+    }
+  }
+}

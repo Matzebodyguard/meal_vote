@@ -1,0 +1,5 @@
+id,name,category,image,active
+spaghetti,Spaghetti Bolognese,Pasta,images/spaghetti.jpg,true
+pizza,Pizza,Ofengericht,images/pizza.jpg,true
+tacos,Tacos,Mexikanisch,images/tacos.jpg,true
+pfannkuchen,Pfannkuchen,Süß,images/pfannkuchen.jpg,true
