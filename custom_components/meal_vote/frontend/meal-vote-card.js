@@ -27,7 +27,7 @@ class MealVoteCard extends HTMLElement {
       .ingredient-suggestion small{color:var(--secondary-text-color);white-space:nowrap}
           .ingredientTools button.pantryActive{background:var(--primary-color);color:var(--text-primary-color);font-weight:700}
 </style><ha-card>
-      <div class="top"><input class="search" id="search" placeholder="🔎 Gericht, Kategorie, Person oder Zutat suchen…" value="${this.esc(this._search)}"><select id="sort"><option value="votes">Meiste Stimmen</option><option value="oldest">Lange nicht gekocht</option><option value="recent">Zuletzt gekocht</option><option value="name">Name</option></select><span style="font-size:.8rem;opacity:.7;font-weight:700">UI 0.6.6</span><button id="reload">↻ Sync</button><button id="pantry">🏠 Standardvorrat</button><button id="optimizeImages">🖼 Bilder optimieren</button><button id="inactive">${this._showInactive?'Aktive':'Verwaltung'}</button><button id="importRecipe">📥 Rezept importieren</button><button id="add" class="add">＋ Gericht</button></div>
+      <div class="top"><input class="search" id="search" placeholder="🔎 Gericht, Kategorie, Person oder Zutat suchen…" value="${this.esc(this._search)}"><select id="sort"><option value="votes">Meiste Stimmen</option><option value="oldest">Lange nicht gekocht</option><option value="recent">Zuletzt gekocht</option><option value="name">Name</option></select><span style="font-size:.8rem;opacity:.7;font-weight:700">UI 0.6.7</span><button id="reload">↻ Sync</button><button id="pantry">🏠 Standardvorrat</button><button id="optimizeImages">🖼 Bilder optimieren</button><button id="inactive">${this._showInactive?'Aktive':'Verwaltung'}</button><button id="importRecipe">📥 Rezept importieren</button><button id="add" class="add">＋ Gericht</button></div>
       <div class="status ${sync.error?'error':''}">${this.esc(syncText)} · automatisch alle ${sync.interval_minutes||10} Min.</div>
       <div class="cats">${cats.map(c=>`<button data-cat="${this.esc(c)}" class="${c===this._category?'active':''}">${this.esc(c)}</button>`).join('')}</div>
       <div class="grid">${dishes.length?dishes.map(d=>this.dishHtml(d)).join(''):'<div class="empty">Keine Gerichte gefunden.</div>'}</div>
@@ -226,6 +226,7 @@ class MealVoteCard extends HTMLElement {
     let mode='meta';
     let recipeStarted=false;
     let pendingStep=null;
+    let pendingIngredientAmount=null;
 
     const cleanMarkdown=s=>String(s||'')
       .replace(/^#{1,6}\s*/,'')
@@ -236,7 +237,6 @@ class MealVoteCard extends HTMLElement {
       .replace(/\[([^\]]+)\]\([^)]+\)/g,'$1')
       .trim();
 
-    // Prefer the first real H1 as title. This skips image markdown and copyright text.
     for(const line of lines){
       const m=line.match(/^#\s+(.+)$/);
       if(m){name=cleanMarkdown(m[1]);break;}
@@ -264,45 +264,27 @@ class MealVoteCard extends HTMLElement {
     };
 
     const parseAmountUnit=left=>{
-      let value=cleanMarkdown(left)
-        .replace(/\u00a0/g,' ')
-        .replace(/\s+/g,' ')
-        .trim();
-
+      let value=cleanMarkdown(left).replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
       if(!value)return{amount:'',unit:''};
       if(/^n\.?\s*b\.?$/i.test(value))return{amount:'n. B.',unit:''};
 
-      // Unit only, e.g. "TL"
       const unitOnly=value.match(/^(g|kg|ml|l|el|tl|stück|stk\.?|dose[n]?|packung|päckchen|prise|bund|stängel|stengel|zweig[e]?)$/i);
       if(unitOnly)return{amount:'',unit:normalizeUnit(unitOnly[1])};
 
-      // Normal case: "500 g", "4 EL", "1", "4 Stängel"
-      const m=value.match(/^(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+)\s*(g|kg|ml|l|el|tl|stück|stk\.?|dose[n]?|packung|päckchen|prise|bund|stängel|stengel|zweig[e]?)?\s*$/i);
-      if(m){
+      const normal=value.match(/^(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+)\s*(g|kg|ml|l|el|tl|stück|stk\.?|dose[n]?|packung|päckchen|prise|bund|stängel|stengel|zweig[e]?)?\s*$/i);
+      if(normal){
         return{
-          amount:(m[1]||'').replace(',','.'),
-          unit:normalizeUnit(m[2]||'')
+          amount:(normal[1]||'').replace(',','.'),
+          unit:normalizeUnit(normal[2]||'')
         };
       }
-
-      // Fallback: first token as amount, remainder as unit.
-      const parts=value.split(' ');
-      if(/^\d+(?:[.,]\d+)?$/.test(parts[0]||'')){
-        return{
-          amount:parts.shift().replace(',','.'),
-          unit:normalizeUnit(parts.join(' '))
-        };
-      }
-
-      return{amount:value,unit:''};
+      return null;
     };
 
     const parseTableIngredient=line=>{
-      const raw=String(line||'').trim();
-      if(!raw.startsWith('|'))return null;
-
-      const parts=raw.split('|');
-      // Expected: ["", "500 g", "Hähnchenbrustfilet(s)", ""]
+      const rawLine=String(line||'').trim();
+      if(!rawLine.startsWith('|'))return null;
+      const parts=rawLine.split('|');
       if(parts.length<4)return null;
 
       const left=cleanMarkdown(parts[1]||'').trim();
@@ -312,18 +294,24 @@ class MealVoteCard extends HTMLElement {
       if(separatorCell(left)||separatorCell(right))return null;
       if(!right)return null;
 
-      const au=parseAmountUnit(left);
-      return {name:right, amount:au.amount, unit:au.unit};
+      const au=parseAmountUnit(left) || {amount:'',unit:''};
+      return{name:right,amount:au.amount,unit:au.unit};
     };
 
-    const parsePlainIngredient=line=>{
-      let s=cleanMarkdown(line).replace(/^[•\-–—]\s*/,'').trim();
+    const parseInlineIngredient=line=>{
+      const s=cleanMarkdown(line).replace(/^[•\-–—]\s*/,'').trim();
       if(!s)return null;
+
+      // "500 g Kartoffeln", "3 EL Sahne", "1 Schalotte"
       const m=s.match(/^(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+|n\.?\s*b\.?)?\s*(g|kg|ml|l|el|tl|stück|stk\.?|dose[n]?|packung|päckchen|prise|bund|stängel|stengel|zweig[e]?)?\s+(.+)$/i);
-      if(m&&(m[1]||m[2])){
-        return{name:(m[3]||'').trim(),amount:(m[1]||'').replace(',','.'),unit:normalizeUnit(m[2]||'')};
+      if(m && (m[1] || m[2])){
+        return{
+          name:(m[3]||'').trim(),
+          amount:(m[1]||'').replace(',','.'),
+          unit:normalizeUnit(m[2]||'')
+        };
       }
-      return{name:s,amount:'',unit:''};
+      return null;
     };
 
     const isMetadata=line=>{
@@ -335,37 +323,70 @@ class MealVoteCard extends HTMLElement {
         /^[]+$/.test(s);
     };
 
-    for(let idx=0;idx<lines.length;idx++){
+    for(let idx=0; idx<lines.length; idx++){
       const original=lines[idx];
       const line=cleanMarkdown(original);
-      const low=line.toLocaleLowerCase('de-DE');
 
-      if(/^##\s+zutaten/i.test(original)||/^zutaten:?$/i.test(line)){mode='ingredients';continue;}
-      if(/^##\s+zubereitung/i.test(original)||/^(zubereitung|anleitung|zubereitungsschritte):?$/i.test(line)){mode='recipe';recipeStarted=false;continue;}
+      if(/^##\s+zutaten/i.test(original)||/^zutaten:?$/i.test(line)){
+        mode='ingredients';
+        pendingIngredientAmount=null;
+        continue;
+      }
+      if(/^##\s+zubereitung/i.test(original)||/^(zubereitung|anleitung|zubereitungsschritte):?$/i.test(line)){
+        mode='recipe';
+        recipeStarted=false;
+        pendingIngredientAmount=null;
+        continue;
+      }
       if(/^#\s+/.test(original))continue;
 
       if(mode==='ingredients'){
         if(!line||/^für\s+\d+\s+portion/i.test(line))continue;
-        if(/^##\s+/.test(original)){mode='meta';continue;}
 
-        // Markdown table separator/header rows are not ingredients.
+        // Normal Markdown table row: | 500 g | Kartoffeln |
         if(original.includes('|')){
           const ing=parseTableIngredient(original);
-          if(ing&&ing.name&&!/^[-: ]+$/.test(ing.name))ingredients.push(ing);
+          if(ing&&ing.name)ingredients.push(ing);
           continue;
         }
 
-        // Only accept non-table lines that actually look like a quantity/unit ingredient.
-        const looksPlain=/^(?:[•\-–—]\s*)?(?:\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+|n\.?\s*b\.?)?\s*(?:g|kg|ml|l|el|tl|stück|stk\.?|dose[n]?|packung|päckchen|prise|bund|stängel|stengel|zweig[e]?)\b/i.test(line);
-        if(looksPlain){
-          const ing=parsePlainIngredient(original);
-          if(ing&&ing.name)ingredients.push(ing);
+        // Rendered/copy-pasted tables often become:
+        // 500 g
+        // Kartoffeln
+        // Detect the amount-only line and remember it for the next text line.
+        const amountOnly=parseAmountUnit(line);
+        if(amountOnly){
+          pendingIngredientAmount=amountOnly;
+          continue;
+        }
+
+        // If we have a pending amount/unit, the current line is the ingredient name.
+        if(pendingIngredientAmount){
+          ingredients.push({
+            name:line,
+            amount:pendingIngredientAmount.amount||'',
+            unit:pendingIngredientAmount.unit||''
+          });
+          pendingIngredientAmount=null;
+          continue;
+        }
+
+        // Inline form: 500 g Kartoffeln
+        const inline=parseInlineIngredient(original);
+        if(inline){
+          ingredients.push(inline);
+          continue;
+        }
+
+        // Quantity-less ingredient, e.g. "Salz und Pfeffer"
+        // Only accept plain text if it is not metadata/separator noise.
+        if(!isMetadata(line) && !/^[-:|]+$/.test(line)){
+          ingredients.push({name:line,amount:'',unit:''});
         }
         continue;
       }
 
       if(mode==='recipe'){
-        // Chefkoch puts time metadata immediately after the Zubereitung heading.
         const step=original.match(/^\*\*(\d+)\*\*$/)||line.match(/^(\d+)$/);
         if(step){
           const number=Number(step[1]);
@@ -377,7 +398,6 @@ class MealVoteCard extends HTMLElement {
         }
         if(!recipeStarted){
           if(isMetadata(original))continue;
-          // Do not treat descriptive metadata as a recipe until step 1 appears.
           continue;
         }
         if(!line||isMetadata(original))continue;
@@ -387,20 +407,17 @@ class MealVoteCard extends HTMLElement {
       }
     }
 
-    // Remove accidental duplicate ingredients while retaining order.
     const seenIngredients=new Set();
     ingredients=ingredients.filter(i=>{
-      const key=[
-        String(i.amount||'').trim(),
-        String(i.unit||'').trim().toLocaleLowerCase('de-DE'),
-        String(i.name||'').replace(/\s+/g,' ').trim().toLocaleLowerCase('de-DE')
-      ].join('|');
+      const name=String(i.name||'').replace(/\s+/g,' ').trim();
+      if(!name)return false;
+      const key=[String(i.amount||'').trim(),String(i.unit||'').trim().toLocaleLowerCase('de-DE'),name.toLocaleLowerCase('de-DE')].join('|');
       if(seenIngredients.has(key))return false;
       seenIngredients.add(key);
+      i.name=name;
       return true;
     });
 
-    // Conservative category inference from title/full text.
     const searchable=(name+' '+raw).toLocaleLowerCase('de-DE');
     const categoryRules=[
       ['Pasta',/\b(pasta|fettuccine|spaghetti|nudeln?|penne|tagliatelle|linguine)\b/],
@@ -413,7 +430,7 @@ class MealVoteCard extends HTMLElement {
       ['Dessert',/\b(dessert|nachtisch)\b/],
       ['Backen',/\b(kuchen|backen|torte)\b/],
       ['Italienisch',/\b(italien|italienisch|römisch|rom|alfredo|fettuccine)\b/],
-      ['Schnell',/\b(10|minuten|schnell)\b/]
+      ['Schnell',/\b(10\s*min|schnell)\b/]
     ];
     for(const [cat,rx] of categoryRules)if(rx.test(searchable))categories.push(cat);
     categories=[...new Set(categories)];
@@ -421,7 +438,37 @@ class MealVoteCard extends HTMLElement {
     return{name,categories,ingredients,recipe:recipeLines.join('\n\n').trim()};
   }
 
+  runImportParserSelfTest(){
+    const sample=`# Kartoffelgratin
+
+## Zutaten
+500 g
+Kartoffeln
+125 ml
+Milch
+3 EL
+Sahne
+Salz und Pfeffer
+
+## Zubereitung
+1
+Kartoffeln schneiden.`;
+    const r=this.parseImportedRecipe(sample);
+    const expected=[
+      ['Kartoffeln','500','g'],
+      ['Milch','125','ml'],
+      ['Sahne','3','EL'],
+      ['Salz und Pfeffer','','']
+    ];
+    const actual=(r.ingredients||[]).map(i=>[i.name||'',i.amount||'',i.unit||'']);
+    const ok=expected.length===actual.length && expected.every((x,i)=>x.every((v,j)=>actual[i]?.[j]===v));
+    if(!ok)console.error('[meal_vote] Import parser self-test failed', {expected,actual});
+    else console.info('[meal_vote] Import parser self-test OK');
+    return ok;
+  }
+
   openImportDialog(){
+    this.runImportParserSelfTest();
     const dialog=this.shadowRoot.querySelector('#importDialog'),modal=this.shadowRoot.querySelector('#importModal');
     modal.innerHTML=`<h2>📥 Rezept importieren</h2>
       <div class="hint">Kopiere Titel, Zutaten und Zubereitung eines Rezepts hier hinein. Der Inhalt wird lokal im Browser ausgewertet.</div>
@@ -500,4 +547,4 @@ class MealVoteCard extends HTMLElement {
   async uploadImage(dishId,file){if(file.size>8*1024*1024)throw new Error('Das Bild darf maximal 8 MB groß sein.');const dataUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsDataURL(file);});await this.ws('meal_vote/upload_image',{dish_id:dishId,filename:file.name,data_url:dataUrl});}
   esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}getCardSize(){return 7;}
 }
-if(!customElements.get('meal-vote-card')) customElements.define('meal-vote-card',MealVoteCard);console.info('[meal_vote] UI 0.6.6 loaded');window.customCards=window.customCards||[];window.customCards.push({type:'meal-vote-card',name:'Essenswahl',description:'Familien-Voting für Gerichte'});
+if(!customElements.get('meal-vote-card')) customElements.define('meal-vote-card',MealVoteCard);console.info('[meal_vote] UI 0.6.7 loaded');window.customCards=window.customCards||[];window.customCards.push({type:'meal-vote-card',name:'Essenswahl',description:'Familien-Voting für Gerichte'});
