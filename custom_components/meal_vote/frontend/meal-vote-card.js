@@ -27,7 +27,7 @@ class MealVoteCard extends HTMLElement {
       .ingredient-suggestion small{color:var(--secondary-text-color);white-space:nowrap}
           .ingredientTools button.pantryActive{background:var(--primary-color);color:var(--text-primary-color);font-weight:700}
 </style><ha-card>
-      <div class="top"><input class="search" id="search" placeholder="🔎 Gericht, Kategorie, Person oder Zutat suchen…" value="${this.esc(this._search)}"><select id="sort"><option value="votes">Meiste Stimmen</option><option value="oldest">Lange nicht gekocht</option><option value="recent">Zuletzt gekocht</option><option value="name">Name</option></select><span style="font-size:.8rem;opacity:.7;font-weight:700">UI 0.6.4</span><button id="reload">↻ Sync</button><button id="pantry">🏠 Standardvorrat</button><button id="optimizeImages">🖼 Bilder optimieren</button><button id="inactive">${this._showInactive?'Aktive':'Verwaltung'}</button><button id="importRecipe">📥 Rezept importieren</button><button id="add" class="add">＋ Gericht</button></div>
+      <div class="top"><input class="search" id="search" placeholder="🔎 Gericht, Kategorie, Person oder Zutat suchen…" value="${this.esc(this._search)}"><select id="sort"><option value="votes">Meiste Stimmen</option><option value="oldest">Lange nicht gekocht</option><option value="recent">Zuletzt gekocht</option><option value="name">Name</option></select><span style="font-size:.8rem;opacity:.7;font-weight:700">UI 0.6.5</span><button id="reload">↻ Sync</button><button id="pantry">🏠 Standardvorrat</button><button id="optimizeImages">🖼 Bilder optimieren</button><button id="inactive">${this._showInactive?'Aktive':'Verwaltung'}</button><button id="importRecipe">📥 Rezept importieren</button><button id="add" class="add">＋ Gericht</button></div>
       <div class="status ${sync.error?'error':''}">${this.esc(syncText)} · automatisch alle ${sync.interval_minutes||10} Min.</div>
       <div class="cats">${cats.map(c=>`<button data-cat="${this.esc(c)}" class="${c===this._category?'active':''}">${this.esc(c)}</button>`).join('')}</div>
       <div class="grid">${dishes.length?dishes.map(d=>this.dishHtml(d)).join(''):'<div class="empty">Keine Gerichte gefunden.</div>'}</div>
@@ -298,31 +298,22 @@ class MealVoteCard extends HTMLElement {
     };
 
     const parseTableIngredient=line=>{
-      const rawLine=String(line||'').trim();
+      const raw=String(line||'').trim();
+      if(!raw.startsWith('|'))return null;
 
-      // Exact Markdown table row:
-      // | 500 g | Hähnchenbrustfilet(s) |
-      // |       | Salz und Pfeffer       |
-      const m=rawLine.match(/^\|\s*(.*?)\s*\|\s*(.*?)\s*\|?\s*$/);
-      if(!m)return null;
+      const parts=raw.split('|');
+      // Expected: ["", "500 g", "Hähnchenbrustfilet(s)", ""]
+      if(parts.length<4)return null;
 
-      const left=cleanMarkdown(m[1]||'').trim();
-      const right=cleanMarkdown(m[2]||'').trim();
+      const left=cleanMarkdown(parts[1]||'').trim();
+      const right=cleanMarkdown(parts[2]||'').trim();
 
-      // Ignore separator/header rows such as:
-      // | --------: | --------------------------- |
       const separatorCell=v=>/^:?-{3,}:?$/.test(String(v||'').replace(/\s/g,''));
       if(separatorCell(left)||separatorCell(right))return null;
-      if(/^(menge|zutat|zutaten)$/i.test(left)||/^(menge|zutat|zutaten)$/i.test(right))return null;
       if(!right)return null;
 
       const au=parseAmountUnit(left);
-
-      return{
-        name:right,
-        amount:au.amount,
-        unit:au.unit
-      };
+      return {name:right, amount:au.amount, unit:au.unit};
     };
 
     const parsePlainIngredient=line=>{
@@ -445,19 +436,27 @@ class MealVoteCard extends HTMLElement {
       preview.innerHTML=`<div><strong>Titel:</strong> ${this.esc(parsed.name||'—')}</div>
         <div style="margin-top:6px"><strong>Kategorien:</strong> ${parsed.categories.length?parsed.categories.map(x=>this.esc(x)).join(', '):'—'}</div>
         <div style="margin-top:6px"><strong>Zutaten:</strong> ${parsed.ingredients.length}</div>
+        <div style="margin-top:8px;max-height:240px;overflow:auto;border:1px solid var(--divider-color);border-radius:10px;padding:8px">
+          ${(parsed.ingredients||[]).map(i=>`<div style="padding:3px 0"><strong>${this.esc(i.name||'')}</strong> · Menge: ${this.esc(i.amount||'—')} · Einheit: ${this.esc(i.unit||'—')}</div>`).join('')}
+        </div>
         <div style="margin-top:6px"><strong>Rezepttext:</strong> ${parsed.recipe?this.esc(parsed.recipe.slice(0,220))+(parsed.recipe.length>220?' …':''):'—'}</div>`;
       modal.querySelector('#importCreate').disabled=!parsed.name;
     };
     modal.querySelector('#importCreate').onclick=async()=>{
       if(!parsed||!parsed.name)return;
       try{
+        const normalizedIngredients=(parsed.ingredients||[]).map(i=>({
+          name:String(i.name||'').trim(),
+          amount:String(i.amount||'').trim(),
+          unit:String(i.unit||'').trim()
+        })).filter(i=>i.name);
         const r=await this.ws('meal_vote/add_dish',{
           name:parsed.name,
           category:parsed.categories[0]||'',
           categories:parsed.categories,
           recipe:parsed.recipe,
           image:'',
-          ingredients:parsed.ingredients
+          ingredients:normalizedIngredients
         });
         dialog.close();
         await this.load();
@@ -497,4 +496,4 @@ class MealVoteCard extends HTMLElement {
   async uploadImage(dishId,file){if(file.size>8*1024*1024)throw new Error('Das Bild darf maximal 8 MB groß sein.');const dataUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsDataURL(file);});await this.ws('meal_vote/upload_image',{dish_id:dishId,filename:file.name,data_url:dataUrl});}
   esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}getCardSize(){return 7;}
 }
-if(!customElements.get('meal-vote-card')) customElements.define('meal-vote-card',MealVoteCard);console.info('[meal_vote] UI 0.6.4 loaded');window.customCards=window.customCards||[];window.customCards.push({type:'meal-vote-card',name:'Essenswahl',description:'Familien-Voting für Gerichte'});
+if(!customElements.get('meal-vote-card')) customElements.define('meal-vote-card',MealVoteCard);console.info('[meal_vote] UI 0.6.5 loaded');window.customCards=window.customCards||[];window.customCards.push({type:'meal-vote-card',name:'Essenswahl',description:'Familien-Voting für Gerichte'});
