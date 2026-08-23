@@ -27,7 +27,7 @@ class MealVoteCard extends HTMLElement {
       .ingredient-suggestion small{color:var(--secondary-text-color);white-space:nowrap}
           .ingredientTools button.pantryActive{background:var(--primary-color);color:var(--text-primary-color);font-weight:700}
 </style><ha-card>
-      <div class="top"><input class="search" id="search" placeholder="🔎 Gericht, Kategorie, Person oder Zutat suchen…" value="${this.esc(this._search)}"><select id="sort"><option value="votes">Meiste Stimmen</option><option value="oldest">Lange nicht gekocht</option><option value="recent">Zuletzt gekocht</option><option value="name">Name</option></select><span style="font-size:.8rem;opacity:.7;font-weight:700">UI 0.6.2</span><button id="reload">↻ Sync</button><button id="pantry">🏠 Standardvorrat</button><button id="optimizeImages">🖼 Bilder optimieren</button><button id="inactive">${this._showInactive?'Aktive':'Verwaltung'}</button><button id="importRecipe">📥 Rezept importieren</button><button id="add" class="add">＋ Gericht</button></div>
+      <div class="top"><input class="search" id="search" placeholder="🔎 Gericht, Kategorie, Person oder Zutat suchen…" value="${this.esc(this._search)}"><select id="sort"><option value="votes">Meiste Stimmen</option><option value="oldest">Lange nicht gekocht</option><option value="recent">Zuletzt gekocht</option><option value="name">Name</option></select><span style="font-size:.8rem;opacity:.7;font-weight:700">UI 0.6.3</span><button id="reload">↻ Sync</button><button id="pantry">🏠 Standardvorrat</button><button id="optimizeImages">🖼 Bilder optimieren</button><button id="inactive">${this._showInactive?'Aktive':'Verwaltung'}</button><button id="importRecipe">📥 Rezept importieren</button><button id="add" class="add">＋ Gericht</button></div>
       <div class="status ${sync.error?'error':''}">${this.esc(syncText)} · automatisch alle ${sync.interval_minutes||10} Min.</div>
       <div class="cats">${cats.map(c=>`<button data-cat="${this.esc(c)}" class="${c===this._category?'active':''}">${this.esc(c)}</button>`).join('')}</div>
       <div class="grid">${dishes.length?dishes.map(d=>this.dishHtml(d)).join(''):'<div class="empty">Keine Gerichte gefunden.</div>'}</div>
@@ -281,12 +281,24 @@ class MealVoteCard extends HTMLElement {
 
     const parseTableIngredient=line=>{
       if(!line.includes('|'))return null;
-      const cells=line.split('|').map(x=>x.trim()).filter((x,i,a)=>!(i===0&&x==='')&&!(i===a.length-1&&x===''));
+
+      // Typical Markdown row:
+      // | 500 g | Hähnchenbrustfilet |
+      // Keep empty edge cells out, but preserve the two real columns.
+      let cells=line.split('|').map(x=>x.trim());
+      if(cells.length && cells[0]==='')cells=cells.slice(1);
+      if(cells.length && cells[cells.length-1]==='')cells=cells.slice(0,-1);
       if(cells.length<2)return null;
-      const left=cells[0], right=cleanMarkdown(cells.slice(1).join(' ').trim());
+
+      const left=cleanMarkdown(cells[0]||'').trim();
+      const right=cleanMarkdown(cells.slice(1).join(' ').trim()).trim();
+
+      // Ignore markdown table separator/header rows.
+      const separatorCell=v=>/^:?-{3,}:?$/.test(String(v||'').replace(/\s/g,''));
+      if(separatorCell(left)||separatorCell(right))return null;
       if(!right)return null;
-      if(/^[-: ]+$/.test(left)||/^[-: ]+$/.test(right))return null;
-      if(/^(menge|zutat|zutaten)$/i.test(cleanMarkdown(left))||/^(menge|zutat|zutaten)$/i.test(right))return null;
+      if(/^(menge|zutat|zutaten)$/i.test(left)||/^(menge|zutat|zutaten)$/i.test(right))return null;
+
       const au=parseAmountUnit(left);
       return{name:right,amount:au.amount,unit:au.unit};
     };
@@ -322,9 +334,20 @@ class MealVoteCard extends HTMLElement {
       if(mode==='ingredients'){
         if(!line||/^für\s+\d+\s+portion/i.test(line))continue;
         if(/^##\s+/.test(original)){mode='meta';continue;}
-        if(/^\|\s*[-:]/.test(original))continue;
-        const ing=original.includes('|')?parseTableIngredient(original):parsePlainIngredient(original);
-        if(ing&&ing.name&&!/^[-: ]+$/.test(ing.name))ingredients.push(ing);
+
+        // Markdown table separator/header rows are not ingredients.
+        if(original.includes('|')){
+          const ing=parseTableIngredient(original);
+          if(ing&&ing.name&&!/^[-: ]+$/.test(ing.name))ingredients.push(ing);
+          continue;
+        }
+
+        // Only accept non-table lines that actually look like a quantity/unit ingredient.
+        const looksPlain=/^(?:[•\-–—]\s*)?(?:\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+|n\.?\s*b\.?)?\s*(?:g|kg|ml|l|el|tl|stück|stk\.?|dose[n]?|packung|päckchen|prise|bund|stängel|stengel|zweig[e]?)\b/i.test(line);
+        if(looksPlain){
+          const ing=parsePlainIngredient(original);
+          if(ing&&ing.name)ingredients.push(ing);
+        }
         continue;
       }
 
@@ -354,9 +377,14 @@ class MealVoteCard extends HTMLElement {
     // Remove accidental duplicate ingredients while retaining order.
     const seenIngredients=new Set();
     ingredients=ingredients.filter(i=>{
-      const key=[i.amount,i.unit,i.name].join('|').toLocaleLowerCase('de-DE');
+      const key=[
+        String(i.amount||'').trim(),
+        String(i.unit||'').trim().toLocaleLowerCase('de-DE'),
+        String(i.name||'').replace(/\s+/g,' ').trim().toLocaleLowerCase('de-DE')
+      ].join('|');
       if(seenIngredients.has(key))return false;
-      seenIngredients.add(key);return true;
+      seenIngredients.add(key);
+      return true;
     });
 
     // Conservative category inference from title/full text.
@@ -447,4 +475,4 @@ class MealVoteCard extends HTMLElement {
   async uploadImage(dishId,file){if(file.size>8*1024*1024)throw new Error('Das Bild darf maximal 8 MB groß sein.');const dataUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsDataURL(file);});await this.ws('meal_vote/upload_image',{dish_id:dishId,filename:file.name,data_url:dataUrl});}
   esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}getCardSize(){return 7;}
 }
-if(!customElements.get('meal-vote-card')) customElements.define('meal-vote-card',MealVoteCard);console.info('[meal_vote] UI 0.6.2 loaded');window.customCards=window.customCards||[];window.customCards.push({type:'meal-vote-card',name:'Essenswahl',description:'Familien-Voting für Gerichte'});
+if(!customElements.get('meal-vote-card')) customElements.define('meal-vote-card',MealVoteCard);console.info('[meal_vote] UI 0.6.3 loaded');window.customCards=window.customCards||[];window.customCards.push({type:'meal-vote-card',name:'Essenswahl',description:'Familien-Voting für Gerichte'});
