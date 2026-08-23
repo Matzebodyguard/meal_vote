@@ -160,7 +160,7 @@ class MealVoteManager:
             writer.writeheader()
             for d in dishes:
                 for item in d.get("ingredients", []):
-                    name = str(item.get("name", "")).strip()
+                    name = str(item.get("name") or item.get("ingredient") or "").strip()
                     if not name:
                         continue
                     writer.writerow({
@@ -664,7 +664,7 @@ class MealVoteManager:
         for item in ingredients or []:
             if not isinstance(item, dict):
                 continue
-            name = str(item.get("name", "")).strip()
+            name = str(item.get("name") or item.get("ingredient") or "").strip()
             if not name:
                 continue
             clean.append({"name": name, "amount": str(item.get("amount", "")).strip(), "unit": str(item.get("unit", "")).strip()})
