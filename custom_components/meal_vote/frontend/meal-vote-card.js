@@ -27,7 +27,7 @@ class MealVoteCard extends HTMLElement {
       .ingredient-suggestion small{color:var(--secondary-text-color);white-space:nowrap}
           .ingredientTools button.pantryActive{background:var(--primary-color);color:var(--text-primary-color);font-weight:700}
 </style><ha-card>
-      <div class="top"><input class="search" id="search" placeholder="🔎 Gericht, Kategorie, Person oder Zutat suchen…" value="${this.esc(this._search)}"><select id="sort"><option value="votes">Meiste Stimmen</option><option value="oldest">Lange nicht gekocht</option><option value="recent">Zuletzt gekocht</option><option value="name">Name</option></select><span style="font-size:.8rem;opacity:.7;font-weight:700">UI 0.6.1</span><button id="reload">↻ Sync</button><button id="pantry">🏠 Standardvorrat</button><button id="optimizeImages">🖼 Bilder optimieren</button><button id="inactive">${this._showInactive?'Aktive':'Verwaltung'}</button><button id="importRecipe">📥 Rezept importieren</button><button id="add" class="add">＋ Gericht</button></div>
+      <div class="top"><input class="search" id="search" placeholder="🔎 Gericht, Kategorie, Person oder Zutat suchen…" value="${this.esc(this._search)}"><select id="sort"><option value="votes">Meiste Stimmen</option><option value="oldest">Lange nicht gekocht</option><option value="recent">Zuletzt gekocht</option><option value="name">Name</option></select><span style="font-size:.8rem;opacity:.7;font-weight:700">UI 0.6.2</span><button id="reload">↻ Sync</button><button id="pantry">🏠 Standardvorrat</button><button id="optimizeImages">🖼 Bilder optimieren</button><button id="inactive">${this._showInactive?'Aktive':'Verwaltung'}</button><button id="importRecipe">📥 Rezept importieren</button><button id="add" class="add">＋ Gericht</button></div>
       <div class="status ${sync.error?'error':''}">${this.esc(syncText)} · automatisch alle ${sync.interval_minutes||10} Min.</div>
       <div class="cats">${cats.map(c=>`<button data-cat="${this.esc(c)}" class="${c===this._category?'active':''}">${this.esc(c)}</button>`).join('')}</div>
       <div class="grid">${dishes.length?dishes.map(d=>this.dishHtml(d)).join(''):'<div class="empty">Keine Gerichte gefunden.</div>'}</div>
@@ -215,60 +215,169 @@ class MealVoteCard extends HTMLElement {
   ingredientEditorHtml(items){const units=['g','kg','ml','l','Stück','Dose','Packung','EL','TL','Prise','Bund'];const names=this.ingredientCatalog();return `<div class="ingredientHead"><span>Zutat</span><span>Menge</span><span>Einheit</span><span></span></div><div class="ingredientEditor" id="ingredientEditor">${items.length?items.map((i,idx)=>`<div class="ingredientRow" data-ing-row="${idx}"><div class="ingredient-name-wrap"><input data-ing-name="${idx}" autocomplete="off" list="ingredientNames" placeholder="z. B. Tomaten" value="${this.esc(i.name||'')}"><div class="ingredient-suggestions"></div></div><input data-ing-amount="${idx}" inputmode="decimal" placeholder="z. B. 500" value="${this.esc(i.amount||'')}"><input data-ing-unit="${idx}" list="ingredientUnits" placeholder="z. B. g" value="${this.esc(i.unit||'')}"><div class="ingredientTools"><button type="button" data-ing-home="${idx}" class="${(this.data?.pantry||[]).some(x=>this.ingredientStem(x)===this.ingredientStem(i.name))?'pantryActive':''}" title="${(this.data?.pantry||[]).some(x=>this.ingredientStem(x)===this.ingredientStem(i.name))?'Im Standardvorrat – klicken zum Entfernen':'Als Standardvorrat markieren'}">🏠</button><button type="button" data-ing-up="${idx}" title="Nach oben" ${idx===0?'disabled':''}>↑</button><button type="button" data-ing-down="${idx}" title="Nach unten" ${idx===items.length-1?'disabled':''}>↓</button><button type="button" data-ing-delete="${idx}" class="danger" title="Zutat löschen">✕</button></div></div>`).join(''):'<div class="ingredientEmpty">Noch keine Zutaten. Mit „＋ Zutat“ kannst du die erste anlegen.</div>'}</div><datalist id="ingredientNames">${names.map(x=>`<option value="${this.esc(x.name)}"></option>`).join('')}</datalist><datalist id="ingredientUnits">${units.map(u=>`<option value="${u}"></option>`).join('')}</datalist><button type="button" id="addIngredient" class="ingredientAdd">＋ Zutat</button>`;}
 
   parseImportedRecipe(text){
-    const raw=String(text||'').replace(/\r/g,'').trim();
+    const raw=String(text||'').replace(/\r/g,'').replace(/\u00a0/g,' ').trim();
     if(!raw)return{name:'',categories:[],ingredients:[],recipe:''};
+
     const lines=raw.split('\n').map(x=>x.trim());
-    const nonEmpty=lines.filter(Boolean);
-    let name=nonEmpty[0]||'';
+    let name='';
     let categories=[];
     let ingredients=[];
     let recipeLines=[];
-    let mode='unknown';
+    let mode='meta';
+    let recipeStarted=false;
+    let pendingStep=null;
 
-    const categoryWords=['vegetarisch','vegan','pasta','nudeln','suppe','auflauf','salat','grillen','backen','schnell','dessert','kuchen','brot','frühstück','fleisch','fisch','asiatisch','italienisch','mexikanisch'];
+    const cleanMarkdown=s=>String(s||'')
+      .replace(/^#{1,6}\s*/,'')
+      .replace(/\*\*/g,'')
+      .replace(/\*/g,'')
+      .replace(/\\:/g,':')
+      .replace(/\\_/g,'_')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g,'$1')
+      .trim();
+
+    // Prefer the first real H1 as title. This skips image markdown and copyright text.
+    for(const line of lines){
+      const m=line.match(/^#\s+(.+)$/);
+      if(m){name=cleanMarkdown(m[1]);break;}
+    }
+    if(!name){
+      const first=lines.find(line=>line && !/^!\[/.test(line) && !/^\[.*\]\(.*\)$/.test(line) && !/^©/.test(line));
+      name=cleanMarkdown(first||'');
+    }
+
     const normalizeUnit=u=>{
-      const x=String(u||'').trim().toLowerCase();
-      const map={'gramm':'g','kilogramm':'kg','milliliter':'ml','liter':'l','stück':'Stück','stk':'Stück','dose':'Dose','dosen':'Dose','packung':'Packung','päckchen':'Packung','el':'EL','esslöffel':'EL','tl':'TL','teelöffel':'TL','prise':'Prise','bund':'Bund'};
-      return map[x]||u||'';
-    };
-    const parseIngredient=line=>{
-      let s=line.replace(/^[•\-–—*]\s*/,'').trim();
-      if(!s)return null;
-      const m=s.match(/^(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+)?\s*(g|kg|ml|l|el|tl|stück|stk\.?|dose[n]?|packung|päckchen|prise|bund)?\s+(.+)$/i);
-      if(m){
-        return {amount:(m[1]||'').replace(',','.'),unit:normalizeUnit(m[2]||''),name:(m[3]||'').trim()};
-      }
-      return {amount:'',unit:'',name:s};
+      const x=String(u||'').trim().replace(/\.$/,'').toLocaleLowerCase('de-DE');
+      const map={
+        'gramm':'g','g':'g','kilogramm':'kg','kg':'kg',
+        'milliliter':'ml','ml':'ml','liter':'l','l':'l',
+        'stück':'Stück','stk':'Stück',
+        'dose':'Dose','dosen':'Dose',
+        'packung':'Packung','päckchen':'Packung',
+        'el':'EL','esslöffel':'EL',
+        'tl':'TL','teelöffel':'TL',
+        'prise':'Prise','bund':'Bund',
+        'stängel':'Stängel','stengel':'Stängel',
+        'zweig':'Zweig','zweige':'Zweig'
+      };
+      return map[x]||String(u||'').trim();
     };
 
-    for(let idx=1;idx<lines.length;idx++){
-      const line=lines[idx];
-      if(!line)continue;
+    const parseAmountUnit=left=>{
+      let value=cleanMarkdown(left).replace(/\s+/g,' ').trim();
+      if(!value)return{amount:'',unit:''};
+      if(/^n\.?\s*b\.?$/i.test(value))return{amount:'n. B.',unit:''};
+
+      // Amount may be missing while unit is present, e.g. "TL".
+      const unitOnly=value.match(/^(g|kg|ml|l|el|tl|stück|stk\.?|dose[n]?|packung|päckchen|prise|bund|stängel|stengel|zweig[e]?)$/i);
+      if(unitOnly)return{amount:'',unit:normalizeUnit(unitOnly[1])};
+
+      const m=value.match(/^(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+)\s*(.*)$/);
+      if(m){
+        return{amount:m[1].replace(',','.'),unit:normalizeUnit(m[2])};
+      }
+      return{amount:value,unit:''};
+    };
+
+    const parseTableIngredient=line=>{
+      if(!line.includes('|'))return null;
+      const cells=line.split('|').map(x=>x.trim()).filter((x,i,a)=>!(i===0&&x==='')&&!(i===a.length-1&&x===''));
+      if(cells.length<2)return null;
+      const left=cells[0], right=cleanMarkdown(cells.slice(1).join(' ').trim());
+      if(!right)return null;
+      if(/^[-: ]+$/.test(left)||/^[-: ]+$/.test(right))return null;
+      if(/^(menge|zutat|zutaten)$/i.test(cleanMarkdown(left))||/^(menge|zutat|zutaten)$/i.test(right))return null;
+      const au=parseAmountUnit(left);
+      return{name:right,amount:au.amount,unit:au.unit};
+    };
+
+    const parsePlainIngredient=line=>{
+      let s=cleanMarkdown(line).replace(/^[•\-–—]\s*/,'').trim();
+      if(!s)return null;
+      const m=s.match(/^(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+|n\.?\s*b\.?)?\s*(g|kg|ml|l|el|tl|stück|stk\.?|dose[n]?|packung|päckchen|prise|bund|stängel|stengel|zweig[e]?)?\s+(.+)$/i);
+      if(m&&(m[1]||m[2])){
+        return{name:(m[3]||'').trim(),amount:(m[1]||'').replace(',','.'),unit:normalizeUnit(m[2]||'')};
+      }
+      return{name:s,amount:'',unit:''};
+    };
+
+    const isMetadata=line=>{
+      const s=cleanMarkdown(line).toLocaleLowerCase('de-DE');
+      return !s ||
+        /^(©|time|difficulty_level|profil|arbeitszeit|gesamtzeit|koch-\/backzeit|ruhezeit|schwierigkeit|rezeptautor|rezeptautor:in|simpel|einfach|mittel|schwer)$/.test(s) ||
+        /^\d+\s*min\.?$/.test(s) ||
+        /^für\s+\d+\s+portion/.test(s) ||
+        /^[]+$/.test(s);
+    };
+
+    for(let idx=0;idx<lines.length;idx++){
+      const original=lines[idx];
+      const line=cleanMarkdown(original);
       const low=line.toLocaleLowerCase('de-DE');
-      if(/^(zutaten|zutaten:|ingredients?)$/.test(low)){mode='ingredients';continue;}
-      if(/^(zubereitung|zubereitung:|anleitung|anleitung:|zubereitungs?schritte|recipe|instructions?)$/.test(low)){mode='recipe';continue;}
-      if(/^(kategorien|kategorie|tags)\s*:/.test(low)){
-        categories.push(...line.split(':').slice(1).join(':').split(/[,;|]/).map(x=>x.trim()).filter(Boolean));
+
+      if(/^##\s+zutaten/i.test(original)||/^zutaten:?$/i.test(line)){mode='ingredients';continue;}
+      if(/^##\s+zubereitung/i.test(original)||/^(zubereitung|anleitung|zubereitungsschritte):?$/i.test(line)){mode='recipe';recipeStarted=false;continue;}
+      if(/^#\s+/.test(original))continue;
+
+      if(mode==='ingredients'){
+        if(!line||/^für\s+\d+\s+portion/i.test(line))continue;
+        if(/^##\s+/.test(original)){mode='meta';continue;}
+        if(/^\|\s*[-:]/.test(original))continue;
+        const ing=original.includes('|')?parseTableIngredient(original):parsePlainIngredient(original);
+        if(ing&&ing.name&&!/^[-: ]+$/.test(ing.name))ingredients.push(ing);
         continue;
       }
-      if(mode==='ingredients'){
-        const ing=parseIngredient(line); if(ing)ingredients.push(ing); continue;
-      }
-      if(mode==='recipe'){recipeLines.push(line);continue;}
 
-      // Heuristic fallback: ingredient-looking lines before prose.
-      const looksIngredient=/^[•\-–—*]?\s*(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+)?\s*(g|kg|ml|l|el|tl|stück|stk\.?|dose[n]?|packung|päckchen|prise|bund)\b/i.test(line);
-      if(looksIngredient && recipeLines.length===0){
-        const ing=parseIngredient(line); if(ing)ingredients.push(ing);
-      }else{
-        recipeLines.push(line);
+      if(mode==='recipe'){
+        // Chefkoch puts time metadata immediately after the Zubereitung heading.
+        const step=original.match(/^\*\*(\d+)\*\*$/)||line.match(/^(\d+)$/);
+        if(step){
+          const number=Number(step[1]);
+          if(number>=1&&number<=30){
+            recipeStarted=true;
+            pendingStep=number;
+          }
+          continue;
+        }
+        if(!recipeStarted){
+          if(isMetadata(original))continue;
+          // Do not treat descriptive metadata as a recipe until step 1 appears.
+          continue;
+        }
+        if(!line||isMetadata(original))continue;
+        recipeLines.push(`${pendingStep!==null?pendingStep+'. ':''}${line}`);
+        pendingStep=null;
+        continue;
       }
     }
 
-    const lowerRaw=raw.toLocaleLowerCase('de-DE');
-    for(const word of categoryWords)if(lowerRaw.includes(word)&&!categories.some(c=>c.toLocaleLowerCase('de-DE')===word))categories.push(word.charAt(0).toUpperCase()+word.slice(1));
-    categories=[...new Map(categories.map(c=>[c.toLocaleLowerCase('de-DE'),c])).values()];
-    return{name,categories,ingredients,recipe:recipeLines.join('\n').trim()};
+    // Remove accidental duplicate ingredients while retaining order.
+    const seenIngredients=new Set();
+    ingredients=ingredients.filter(i=>{
+      const key=[i.amount,i.unit,i.name].join('|').toLocaleLowerCase('de-DE');
+      if(seenIngredients.has(key))return false;
+      seenIngredients.add(key);return true;
+    });
+
+    // Conservative category inference from title/full text.
+    const searchable=(name+' '+raw).toLocaleLowerCase('de-DE');
+    const categoryRules=[
+      ['Pasta',/\b(pasta|fettuccine|spaghetti|nudeln?|penne|tagliatelle|linguine)\b/],
+      ['Vegetarisch',/\bvegetarisch\b/],
+      ['Vegan',/\bvegan\b/],
+      ['Fleisch',/\b(hähnchen|huhn|hühnchen|hackfleisch|rind|schwein|pute)\b/],
+      ['Fisch',/\b(lachs|fisch|thunfisch|forelle)\b/],
+      ['Suppe',/\bsuppe\b/],
+      ['Salat',/\bsalat\b/],
+      ['Dessert',/\b(dessert|nachtisch)\b/],
+      ['Backen',/\b(kuchen|backen|torte)\b/],
+      ['Italienisch',/\b(italien|italienisch|römisch|rom|alfredo|fettuccine)\b/],
+      ['Schnell',/\b(10|minuten|schnell)\b/]
+    ];
+    for(const [cat,rx] of categoryRules)if(rx.test(searchable))categories.push(cat);
+    categories=[...new Set(categories)];
+
+    return{name,categories,ingredients,recipe:recipeLines.join('\n\n').trim()};
   }
 
   openImportDialog(){
@@ -338,4 +447,4 @@ class MealVoteCard extends HTMLElement {
   async uploadImage(dishId,file){if(file.size>8*1024*1024)throw new Error('Das Bild darf maximal 8 MB groß sein.');const dataUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsDataURL(file);});await this.ws('meal_vote/upload_image',{dish_id:dishId,filename:file.name,data_url:dataUrl});}
   esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}getCardSize(){return 7;}
 }
-if(!customElements.get('meal-vote-card')) customElements.define('meal-vote-card',MealVoteCard);console.info('[meal_vote] UI 0.6.1 loaded');window.customCards=window.customCards||[];window.customCards.push({type:'meal-vote-card',name:'Essenswahl',description:'Familien-Voting für Gerichte'});
+if(!customElements.get('meal-vote-card')) customElements.define('meal-vote-card',MealVoteCard);console.info('[meal_vote] UI 0.6.2 loaded');window.customCards=window.customCards||[];window.customCards.push({type:'meal-vote-card',name:'Essenswahl',description:'Familien-Voting für Gerichte'});
