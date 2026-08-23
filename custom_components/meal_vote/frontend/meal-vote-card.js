@@ -27,14 +27,14 @@ class MealVoteCard extends HTMLElement {
       .ingredient-suggestion small{color:var(--secondary-text-color);white-space:nowrap}
           .ingredientTools button.pantryActive{background:var(--primary-color);color:var(--text-primary-color);font-weight:700}
 </style><ha-card>
-      <div class="top"><input class="search" id="search" placeholder="🔎 Gericht, Kategorie, Person oder Zutat suchen…" value="${this.esc(this._search)}"><select id="sort"><option value="votes">Meiste Stimmen</option><option value="oldest">Lange nicht gekocht</option><option value="recent">Zuletzt gekocht</option><option value="name">Name</option></select><span style="font-size:.8rem;opacity:.7;font-weight:700">UI 0.6.0</span><button id="reload">↻ Sync</button><button id="pantry">🏠 Standardvorrat</button><button id="optimizeImages">🖼 Bilder optimieren</button><button id="inactive">${this._showInactive?'Aktive':'Verwaltung'}</button><button id="add" class="add">＋ Gericht</button></div>
+      <div class="top"><input class="search" id="search" placeholder="🔎 Gericht, Kategorie, Person oder Zutat suchen…" value="${this.esc(this._search)}"><select id="sort"><option value="votes">Meiste Stimmen</option><option value="oldest">Lange nicht gekocht</option><option value="recent">Zuletzt gekocht</option><option value="name">Name</option></select><span style="font-size:.8rem;opacity:.7;font-weight:700">UI 0.6.1</span><button id="reload">↻ Sync</button><button id="pantry">🏠 Standardvorrat</button><button id="optimizeImages">🖼 Bilder optimieren</button><button id="inactive">${this._showInactive?'Aktive':'Verwaltung'}</button><button id="importRecipe">📥 Rezept importieren</button><button id="add" class="add">＋ Gericht</button></div>
       <div class="status ${sync.error?'error':''}">${this.esc(syncText)} · automatisch alle ${sync.interval_minutes||10} Min.</div>
       <div class="cats">${cats.map(c=>`<button data-cat="${this.esc(c)}" class="${c===this._category?'active':''}">${this.esc(c)}</button>`).join('')}</div>
       <div class="grid">${dishes.length?dishes.map(d=>this.dishHtml(d)).join(''):'<div class="empty">Keine Gerichte gefunden.</div>'}</div>
-      <dialog id="dishDialog"><div class="modal" id="dishModal"></div></dialog><dialog id="voteDialog"><div class="modal" id="voteModal"></div></dialog><dialog id="infoDialog"><div class="modal" id="infoModal"></div></dialog><dialog id="shoppingDialog"><div class="modal" id="shoppingModal"></div></dialog><dialog id="pantryDialog"><div class="modal" id="pantryModal"></div></dialog>
+      <dialog id="dishDialog"><div class="modal" id="dishModal"></div></dialog><dialog id="voteDialog"><div class="modal" id="voteModal"></div></dialog><dialog id="infoDialog"><div class="modal" id="infoModal"></div></dialog><dialog id="shoppingDialog"><div class="modal" id="shoppingModal"></div></dialog><dialog id="pantryDialog"><div class="modal" id="pantryModal"></div></dialog><dialog id="importDialog"><div class="modal" id="importModal"></div></dialog>
     </ha-card>`;
     const sort=this.shadowRoot.querySelector('#sort');sort.value=this._sort;sort.onchange=e=>{this._sort=e.target.value;this.render();};
-    this.shadowRoot.querySelector('#search').oninput=e=>{this._search=e.target.value;this.render();};this.shadowRoot.querySelector('#reload').onclick=()=>this.call('reload');this.shadowRoot.querySelector('#add').onclick=()=>this.openDishDialog();this.shadowRoot.querySelector('#pantry').onclick=()=>this.openPantryDialog();this.shadowRoot.querySelector('#optimizeImages').onclick=async()=>{if(!confirm('Bestehende Gerichtsbilder optimieren? Es werden neue WebP-Dateien angelegt und die Gerichtsliste darauf umgestellt. Die Originaldateien bleiben auf dem NAS erhalten.'))return;const b=this.shadowRoot.querySelector('#optimizeImages');b.disabled=true;try{const r=await this.ws('meal_vote/optimize_images');alert(`${r.optimized||0} Bilder optimiert · ${r.skipped||0} übersprungen`);await this.load();}catch(e){alert(e.message||e);}finally{b.disabled=false;}};this.shadowRoot.querySelector('#inactive').onclick=()=>{this._showInactive=!this._showInactive;this._category='Alle';this.render();};this.shadowRoot.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{this._category=b.dataset.cat;this.render();});this.shadowRoot.querySelectorAll('[data-vote]').forEach(b=>b.onclick=()=>this.openVoteDialog(this.findDish(b.dataset.vote)));this.shadowRoot.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>this.openDishDialog(this.findDish(b.dataset.edit)));this.shadowRoot.querySelectorAll('[data-cooked]').forEach(b=>b.onclick=()=>{if(confirm('Dieses Gericht als gekocht markieren? Nur seine Stimmen werden gelöscht.'))this.call('mark_cooked',{dish_id:b.dataset.cooked});});this.shadowRoot.querySelectorAll('[data-ing]').forEach(b=>b.onclick=()=>this.openIngredients(this.findDish(b.dataset.ing)));this.shadowRoot.querySelectorAll('[data-shop]').forEach(b=>b.onclick=()=>this.openShoppingDialog(this.findDish(b.dataset.shop)));
+    this.shadowRoot.querySelector('#search').oninput=e=>{this._search=e.target.value;this.render();};this.shadowRoot.querySelector('#reload').onclick=()=>this.call('reload');this.shadowRoot.querySelector('#importRecipe').onclick=()=>this.openImportDialog();this.shadowRoot.querySelector('#add').onclick=()=>this.openDishDialog();this.shadowRoot.querySelector('#pantry').onclick=()=>this.openPantryDialog();this.shadowRoot.querySelector('#optimizeImages').onclick=async()=>{if(!confirm('Bestehende Gerichtsbilder optimieren? Es werden neue WebP-Dateien angelegt und die Gerichtsliste darauf umgestellt. Die Originaldateien bleiben auf dem NAS erhalten.'))return;const b=this.shadowRoot.querySelector('#optimizeImages');b.disabled=true;try{const r=await this.ws('meal_vote/optimize_images');alert(`${r.optimized||0} Bilder optimiert · ${r.skipped||0} übersprungen`);await this.load();}catch(e){alert(e.message||e);}finally{b.disabled=false;}};this.shadowRoot.querySelector('#inactive').onclick=()=>{this._showInactive=!this._showInactive;this._category='Alle';this.render();};this.shadowRoot.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{this._category=b.dataset.cat;this.render();});this.shadowRoot.querySelectorAll('[data-vote]').forEach(b=>b.onclick=()=>this.openVoteDialog(this.findDish(b.dataset.vote)));this.shadowRoot.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>this.openDishDialog(this.findDish(b.dataset.edit)));this.shadowRoot.querySelectorAll('[data-cooked]').forEach(b=>b.onclick=()=>{if(confirm('Dieses Gericht als gekocht markieren? Nur seine Stimmen werden gelöscht.'))this.call('mark_cooked',{dish_id:b.dataset.cooked});});this.shadowRoot.querySelectorAll('[data-ing]').forEach(b=>b.onclick=()=>this.openIngredients(this.findDish(b.dataset.ing)));this.shadowRoot.querySelectorAll('[data-shop]').forEach(b=>b.onclick=()=>this.openShoppingDialog(this.findDish(b.dataset.shop)));
   }
   sorter(a,b){if(this._sort==='name')return a.name.localeCompare(b.name,'de');if(this._sort==='recent')return(this.time(b.last_cooked)-this.time(a.last_cooked))||a.name.localeCompare(b.name,'de');if(this._sort==='oldest'){const ta=this.time(a.last_cooked),tb=this.time(b.last_cooked);if(!ta&&!tb)return a.name.localeCompare(b.name,'de');if(!ta)return-1;if(!tb)return 1;return ta-tb;}return b.vote_count-a.vote_count||a.name.localeCompare(b.name,'de');}
   time(v){return v?new Date(v).getTime():0;} findDish(id){return this.data.dishes.find(d=>d.id===id);}
@@ -213,6 +213,103 @@ class MealVoteCard extends HTMLElement {
   }
 
   ingredientEditorHtml(items){const units=['g','kg','ml','l','Stück','Dose','Packung','EL','TL','Prise','Bund'];const names=this.ingredientCatalog();return `<div class="ingredientHead"><span>Zutat</span><span>Menge</span><span>Einheit</span><span></span></div><div class="ingredientEditor" id="ingredientEditor">${items.length?items.map((i,idx)=>`<div class="ingredientRow" data-ing-row="${idx}"><div class="ingredient-name-wrap"><input data-ing-name="${idx}" autocomplete="off" list="ingredientNames" placeholder="z. B. Tomaten" value="${this.esc(i.name||'')}"><div class="ingredient-suggestions"></div></div><input data-ing-amount="${idx}" inputmode="decimal" placeholder="z. B. 500" value="${this.esc(i.amount||'')}"><input data-ing-unit="${idx}" list="ingredientUnits" placeholder="z. B. g" value="${this.esc(i.unit||'')}"><div class="ingredientTools"><button type="button" data-ing-home="${idx}" class="${(this.data?.pantry||[]).some(x=>this.ingredientStem(x)===this.ingredientStem(i.name))?'pantryActive':''}" title="${(this.data?.pantry||[]).some(x=>this.ingredientStem(x)===this.ingredientStem(i.name))?'Im Standardvorrat – klicken zum Entfernen':'Als Standardvorrat markieren'}">🏠</button><button type="button" data-ing-up="${idx}" title="Nach oben" ${idx===0?'disabled':''}>↑</button><button type="button" data-ing-down="${idx}" title="Nach unten" ${idx===items.length-1?'disabled':''}>↓</button><button type="button" data-ing-delete="${idx}" class="danger" title="Zutat löschen">✕</button></div></div>`).join(''):'<div class="ingredientEmpty">Noch keine Zutaten. Mit „＋ Zutat“ kannst du die erste anlegen.</div>'}</div><datalist id="ingredientNames">${names.map(x=>`<option value="${this.esc(x.name)}"></option>`).join('')}</datalist><datalist id="ingredientUnits">${units.map(u=>`<option value="${u}"></option>`).join('')}</datalist><button type="button" id="addIngredient" class="ingredientAdd">＋ Zutat</button>`;}
+
+  parseImportedRecipe(text){
+    const raw=String(text||'').replace(/\r/g,'').trim();
+    if(!raw)return{name:'',categories:[],ingredients:[],recipe:''};
+    const lines=raw.split('\n').map(x=>x.trim());
+    const nonEmpty=lines.filter(Boolean);
+    let name=nonEmpty[0]||'';
+    let categories=[];
+    let ingredients=[];
+    let recipeLines=[];
+    let mode='unknown';
+
+    const categoryWords=['vegetarisch','vegan','pasta','nudeln','suppe','auflauf','salat','grillen','backen','schnell','dessert','kuchen','brot','frühstück','fleisch','fisch','asiatisch','italienisch','mexikanisch'];
+    const normalizeUnit=u=>{
+      const x=String(u||'').trim().toLowerCase();
+      const map={'gramm':'g','kilogramm':'kg','milliliter':'ml','liter':'l','stück':'Stück','stk':'Stück','dose':'Dose','dosen':'Dose','packung':'Packung','päckchen':'Packung','el':'EL','esslöffel':'EL','tl':'TL','teelöffel':'TL','prise':'Prise','bund':'Bund'};
+      return map[x]||u||'';
+    };
+    const parseIngredient=line=>{
+      let s=line.replace(/^[•\-–—*]\s*/,'').trim();
+      if(!s)return null;
+      const m=s.match(/^(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+)?\s*(g|kg|ml|l|el|tl|stück|stk\.?|dose[n]?|packung|päckchen|prise|bund)?\s+(.+)$/i);
+      if(m){
+        return {amount:(m[1]||'').replace(',','.'),unit:normalizeUnit(m[2]||''),name:(m[3]||'').trim()};
+      }
+      return {amount:'',unit:'',name:s};
+    };
+
+    for(let idx=1;idx<lines.length;idx++){
+      const line=lines[idx];
+      if(!line)continue;
+      const low=line.toLocaleLowerCase('de-DE');
+      if(/^(zutaten|zutaten:|ingredients?)$/.test(low)){mode='ingredients';continue;}
+      if(/^(zubereitung|zubereitung:|anleitung|anleitung:|zubereitungs?schritte|recipe|instructions?)$/.test(low)){mode='recipe';continue;}
+      if(/^(kategorien|kategorie|tags)\s*:/.test(low)){
+        categories.push(...line.split(':').slice(1).join(':').split(/[,;|]/).map(x=>x.trim()).filter(Boolean));
+        continue;
+      }
+      if(mode==='ingredients'){
+        const ing=parseIngredient(line); if(ing)ingredients.push(ing); continue;
+      }
+      if(mode==='recipe'){recipeLines.push(line);continue;}
+
+      // Heuristic fallback: ingredient-looking lines before prose.
+      const looksIngredient=/^[•\-–—*]?\s*(\d+(?:[.,]\d+)?|\d+\s*\/\s*\d+)?\s*(g|kg|ml|l|el|tl|stück|stk\.?|dose[n]?|packung|päckchen|prise|bund)\b/i.test(line);
+      if(looksIngredient && recipeLines.length===0){
+        const ing=parseIngredient(line); if(ing)ingredients.push(ing);
+      }else{
+        recipeLines.push(line);
+      }
+    }
+
+    const lowerRaw=raw.toLocaleLowerCase('de-DE');
+    for(const word of categoryWords)if(lowerRaw.includes(word)&&!categories.some(c=>c.toLocaleLowerCase('de-DE')===word))categories.push(word.charAt(0).toUpperCase()+word.slice(1));
+    categories=[...new Map(categories.map(c=>[c.toLocaleLowerCase('de-DE'),c])).values()];
+    return{name,categories,ingredients,recipe:recipeLines.join('\n').trim()};
+  }
+
+  openImportDialog(){
+    const dialog=this.shadowRoot.querySelector('#importDialog'),modal=this.shadowRoot.querySelector('#importModal');
+    modal.innerHTML=`<h2>📥 Rezept importieren</h2>
+      <div class="hint">Kopiere Titel, Zutaten und Zubereitung eines Rezepts hier hinein. Der Inhalt wird lokal im Browser ausgewertet.</div>
+      <textarea id="importText" rows="16" style="width:100%;margin-top:12px" placeholder="Beispiel:\nSpaghetti Bolognese\n\nZutaten:\n500 g Hackfleisch\n500 g Spaghetti\n2 Dosen Tomaten\n\nZubereitung:\n..."></textarea>
+      <div id="importPreview" style="margin-top:14px"></div>
+      <div class="modalActions"><button id="importCancel">Abbrechen</button><button id="importAnalyze">Analysieren</button><button id="importCreate" disabled>Als neues Gericht übernehmen</button></div>`;
+    let parsed=null;
+    const preview=modal.querySelector('#importPreview');
+    modal.querySelector('#importCancel').onclick=()=>dialog.close();
+    modal.querySelector('#importAnalyze').onclick=()=>{
+      parsed=this.parseImportedRecipe(modal.querySelector('#importText').value);
+      preview.innerHTML=`<div><strong>Titel:</strong> ${this.esc(parsed.name||'—')}</div>
+        <div style="margin-top:6px"><strong>Kategorien:</strong> ${parsed.categories.length?parsed.categories.map(x=>this.esc(x)).join(', '):'—'}</div>
+        <div style="margin-top:6px"><strong>Zutaten:</strong> ${parsed.ingredients.length}</div>
+        <div style="margin-top:6px"><strong>Rezepttext:</strong> ${parsed.recipe?this.esc(parsed.recipe.slice(0,220))+(parsed.recipe.length>220?' …':''):'—'}</div>`;
+      modal.querySelector('#importCreate').disabled=!parsed.name;
+    };
+    modal.querySelector('#importCreate').onclick=async()=>{
+      if(!parsed||!parsed.name)return;
+      try{
+        const r=await this.ws('meal_vote/add_dish',{
+          name:parsed.name,
+          category:parsed.categories[0]||'',
+          categories:parsed.categories,
+          recipe:parsed.recipe,
+          image:'',
+          ingredients:parsed.ingredients
+        });
+        dialog.close();
+        await this.load();
+        const created=this.findDish(r.dish_id);
+        if(created)this.openDishDialog(created);
+      }catch(e){alert(e.message||e);}
+    };
+    dialog.showModal();
+    setTimeout(()=>modal.querySelector('#importText')?.focus(),0);
+  }
+
   openDishDialog(dish=null){
     const dialog=this.shadowRoot.querySelector('#dishDialog'),modal=this.shadowRoot.querySelector('#dishModal'),editing=!!dish;
     const ingredientDraft=(dish?.ingredients||[]).map(i=>({name:i.name||'',amount:i.amount||'',unit:i.unit||''}));
@@ -241,4 +338,4 @@ class MealVoteCard extends HTMLElement {
   async uploadImage(dishId,file){if(file.size>8*1024*1024)throw new Error('Das Bild darf maximal 8 MB groß sein.');const dataUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsDataURL(file);});await this.ws('meal_vote/upload_image',{dish_id:dishId,filename:file.name,data_url:dataUrl});}
   esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}getCardSize(){return 7;}
 }
-if(!customElements.get('meal-vote-card')) customElements.define('meal-vote-card',MealVoteCard);console.info('[meal_vote] UI 0.6.0 loaded');window.customCards=window.customCards||[];window.customCards.push({type:'meal-vote-card',name:'Essenswahl',description:'Familien-Voting für Gerichte'});
+if(!customElements.get('meal-vote-card')) customElements.define('meal-vote-card',MealVoteCard);console.info('[meal_vote] UI 0.6.1 loaded');window.customCards=window.customCards||[];window.customCards.push({type:'meal-vote-card',name:'Essenswahl',description:'Familien-Voting für Gerichte'});
