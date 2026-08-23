@@ -101,21 +101,21 @@ async def ws_get_data(hass: HomeAssistant, connection: websocket_api.ActiveConne
         connection.send_error(msg["id"], "not_loaded", str(err))
 
 
-@websocket_api.websocket_command({vol.Required("type"): "meal_vote/add_dish", vol.Required("name"): str, vol.Optional("category", default=""): str, vol.Optional("image", default=""): str, vol.Optional("ingredients", default=[]): list})
+@websocket_api.websocket_command({vol.Required("type"): "meal_vote/add_dish", vol.Required("name"): str, vol.Optional("category", default=""): str, vol.Optional("categories", default=[]): list, vol.Optional("recipe", default=""): str, vol.Optional("image", default=""): str, vol.Optional("ingredients", default=[]): list})
 @websocket_api.async_response
 async def ws_add_dish(hass, connection, msg):
     try:
-        dish_id = await _manager(hass).async_add_dish(msg["name"], msg.get("category", ""), msg.get("image", ""), msg.get("ingredients", []))
+        dish_id = await _manager(hass).async_add_dish(msg["name"], msg.get("category", ""), msg.get("image", ""), msg.get("ingredients", []), msg.get("categories", []), msg.get("recipe", ""))
         connection.send_result(msg["id"], {"dish_id": dish_id})
     except (ValueError, OSError) as err:
         connection.send_error(msg["id"], "save_failed", str(err))
 
 
-@websocket_api.websocket_command({vol.Required("type"): "meal_vote/update_dish", vol.Required("dish_id"): str, vol.Required("name"): str, vol.Optional("category", default=""): str, vol.Optional("image", default=""): str, vol.Optional("active", default=True): bool, vol.Optional("ingredients", default=[]): list})
+@websocket_api.websocket_command({vol.Required("type"): "meal_vote/update_dish", vol.Required("dish_id"): str, vol.Required("name"): str, vol.Optional("category", default=""): str, vol.Optional("categories", default=[]): list, vol.Optional("recipe", default=""): str, vol.Optional("image", default=""): str, vol.Optional("active", default=True): bool, vol.Optional("ingredients", default=[]): list})
 @websocket_api.async_response
 async def ws_update_dish(hass, connection, msg):
     try:
-        await _manager(hass).async_update_dish(msg["dish_id"], msg["name"], msg.get("category", ""), msg.get("image", ""), msg.get("active", True), msg.get("ingredients", []))
+        await _manager(hass).async_update_dish(msg["dish_id"], msg["name"], msg.get("category", ""), msg.get("image", ""), msg.get("active", True), msg.get("ingredients", []), msg.get("categories", []), msg.get("recipe", ""))
         connection.send_result(msg["id"], {"ok": True})
     except (ValueError, OSError) as err:
         connection.send_error(msg["id"], "save_failed", str(err))
