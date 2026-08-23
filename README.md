@@ -71,7 +71,7 @@ Für einen sicheren Cache-Wechsel die Dashboard-Ressource auf `/meal_vote_static
 
 
 ## Wichtig bei Update auf 0.4.8
-Dashboard-Ressource: `/meal_vote_static/meal-vote-card.js?v=0.5.6`
+Dashboard-Ressource: `/meal_vote_static/meal-vote-card.js?v=0.5.7`
 
 Kartentyp:
 ```yaml
@@ -80,7 +80,7 @@ type: custom:meal-vote-card
 Die alte `custom:meal-vote-card` kann parallel existieren; für den Test bitte die neue Karte verwenden.
 
 
-## Zutatenverwaltung ab v0.5.6
+## Zutatenverwaltung ab v0.5.7
 Beim Bearbeiten eines Gerichts werden Zutaten nicht mehr als Semikolon-Text gepflegt. Jede Zutat besitzt eigene Felder für Name, Menge und Einheit. Mit `＋ Zutat` können neue Zeilen ergänzt, mit `✕` gelöscht und mit `↑`/`↓` sortiert werden. Die Daten werden weiterhin in `ingredients.csv` gespeichert.
 
 
@@ -96,8 +96,8 @@ Die Autovervollständigung erkennt auch kleinere Tippfehler und ähnliche Schrei
 Über **🏠 Standardvorrat** können häufig vorhandene Zutaten markiert werden. Diese bleiben in Rezepten sichtbar, sind beim Übertragen auf die Einkaufsliste aber zunächst nicht ausgewählt. Im Zutateneditor kann eine Zutat über das 🏠-Symbol direkt zum Standardvorrat hinzugefügt bzw. daraus entfernt werden.
 
 
-### Wochenplan (v0.5.6)
-Zusätzliche Ressource: `/meal_vote_static/meal-week-plan-card.js?v=0.5.6`
+### Wochenplan (v0.5.7)
+Zusätzliche Ressource: `/meal_vote_static/meal-week-plan-card.js?v=0.5.7`
 
 Dashboardkarte:
 ```yaml
@@ -106,7 +106,7 @@ type: custom:meal-week-plan-card
 Der Wochenplan unterstützt mehrere Gerichte pro Tag und einen gemeinsamen Wocheneinkauf. Standardvorrat wird dabei automatisch abgewählt.
 
 
-### Getrennter Wochenplan (v0.5.6)
+### Getrennter Wochenplan (v0.5.7)
 
 Familien-/Wandpanel, nur Anzeige:
 ```yaml
@@ -114,7 +114,7 @@ type: custom:meal-week-plan-card
 grid_options:
   columns: full
 ```
-Ressource: `/meal_vote_static/meal-week-plan-card.js?v=0.5.6`
+Ressource: `/meal_vote_static/meal-week-plan-card.js?v=0.5.7`
 
 Verwaltung:
 ```yaml
@@ -122,12 +122,12 @@ type: custom:meal-week-plan-admin-card
 grid_options:
   columns: full
 ```
-Ressource: `/meal_vote_static/meal-week-plan-admin-card.js?v=0.5.6`
+Ressource: `/meal_vote_static/meal-week-plan-admin-card.js?v=0.5.7`
 
 Nur die Admin-Karte enthält Bearbeiten, Löschen, „＋ Gericht“ und den Wocheneinkauf.
 
 
-### Rezepte und mehrere Kategorien (v0.5.6)
+### Rezepte und mehrere Kategorien (v0.5.7)
 
 Zusätzlich auf dem NAS:
 ```text

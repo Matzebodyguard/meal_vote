@@ -75,11 +75,14 @@ class MealVoteManager:
                 name = (row.get("name") or "").strip()
                 if not dish_id or not name:
                     continue
+                raw_categories = (row.get("categories") or "").strip()
+                fallback_category = (row.get("category") or "").strip()
+                categories = [x.strip() for x in raw_categories.split("|") if x.strip()] if raw_categories else ([fallback_category] if fallback_category else [])
                 result.append({
                     "id": dish_id,
                     "name": name,
-                    "category": (row.get("category") or "").strip(),
-                    "categories": [x.strip() for x in (row.get("categories") or row.get("category") or "").split("|") if x.strip()],
+                    "category": categories[0] if categories else "",
+                    "categories": categories,
                     "image": (row.get("image") or "").strip(),
                     "active": (row.get("active") or "true").strip().lower() not in {"0", "false", "no", "nein"},
                 })
