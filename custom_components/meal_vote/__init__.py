@@ -45,7 +45,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         [StaticPathConfig("/meal_vote_static", str(frontend_dir), False)]
     )
 
-    for command in (ws_get_data, ws_add_dish, ws_update_dish, ws_delete_dish, ws_upload_image, ws_add_to_shopping_list, ws_set_pantry, ws_set_week_plan, ws_add_week_to_shopping_list):
+    for command in (ws_get_data, ws_add_dish, ws_update_dish, ws_delete_dish, ws_upload_image, ws_add_to_shopping_list, ws_set_pantry, ws_set_week_plan, ws_add_week_to_shopping_list, ws_optimize_images):
         websocket_api.async_register_command(hass, command)
     return True
 
@@ -192,3 +192,15 @@ async def ws_add_week_to_shopping_list(hass, connection, msg):
         connection.send_result(msg["id"], {"ok": True, **result})
     except (ValueError, OSError) as err:
         connection.send_error(msg["id"], "week_shopping_failed", str(err))
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "meal_vote/optimize_images",
+})
+@websocket_api.async_response
+async def ws_optimize_images(hass, connection, msg):
+    try:
+        result = await _manager(hass).async_optimize_existing_images()
+        connection.send_result(msg["id"], {"ok": True, **result})
+    except (ValueError, OSError) as err:
+        connection.send_error(msg["id"], "image_optimize_failed", str(err))

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+from io import BytesIO
 import csv
 import os
 import re
@@ -10,12 +11,17 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+from PIL import Image, ImageOps, UnidentifiedImageError
+
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
 from .const import CSV_NAME, IMAGE_CACHE_DIR, INGREDIENTS_CSV_NAME, RECIPES_CSV_NAME, MAX_IMAGE_BYTES, STORE_KEY, STORE_VERSION, SYNC_MINUTES
 
 _SAFE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+IMAGE_MAX_SIZE = (1200, 1200)
+THUMBNAIL_MAX_SIZE = (480, 480)
+WEBP_QUALITY = 82
 
 
 class MealVoteManager:
@@ -170,18 +176,41 @@ class MealVoteManager:
             rel = dish.get("image")
             if not rel:
                 dish.pop("image_url", None)
+                dish.pop("image_full_url", None)
                 continue
             src = (self.data_path / rel).resolve()
             if self.data_path.resolve() not in src.parents or not src.is_file():
                 continue
-            ext = src.suffix.lower() if src.suffix.lower() in _SAFE_EXTENSIONS else ".jpg"
-            target = self.cache_dir / f"{dish['id']}{ext}"
+            full_target = self.cache_dir / f"{dish['id']}_full.webp"
+            thumb_target = self.cache_dir / f"{dish['id']}_thumb.webp"
             try:
-                if not target.exists() or src.stat().st_mtime > target.stat().st_mtime:
-                    shutil.copy2(src, target)
-                dish["image_url"] = f"/local/{IMAGE_CACHE_DIR}/{target.name}"
-            except OSError:
+                source_mtime = src.stat().st_mtime
+                needs_full = not full_target.exists() or source_mtime > full_target.stat().st_mtime
+                needs_thumb = not thumb_target.exists() or source_mtime > thumb_target.stat().st_mtime
+                if needs_full or needs_thumb:
+                    with Image.open(src) as im:
+                        im = ImageOps.exif_transpose(im)
+                        if im.mode not in ("RGB", "RGBA"):
+                            im = im.convert("RGB")
+                        if im.mode == "RGBA":
+                            background = Image.new("RGB", im.size, (255, 255, 255))
+                            background.paste(im, mask=im.getchannel("A"))
+                            im = background
+                        else:
+                            im = im.convert("RGB")
+                        if needs_full:
+                            full = im.copy()
+                            full.thumbnail(IMAGE_MAX_SIZE, Image.Resampling.LANCZOS)
+                            full.save(full_target, "WEBP", quality=WEBP_QUALITY, method=6)
+                        if needs_thumb:
+                            thumb = im.copy()
+                            thumb.thumbnail(THUMBNAIL_MAX_SIZE, Image.Resampling.LANCZOS)
+                            thumb.save(thumb_target, "WEBP", quality=78, method=6)
+                dish["image_url"] = f"/local/{IMAGE_CACHE_DIR}/{thumb_target.name}"
+                dish["image_full_url"] = f"/local/{IMAGE_CACHE_DIR}/{full_target.name}"
+            except (OSError, UnidentifiedImageError):
                 pass
+
 
     async def async_vote(self, dish_id: str, person: str):
         self._validate(dish_id, person)
@@ -548,20 +577,87 @@ class MealVoteManager:
         raw = base64.b64decode(match.group(2), validate=True)
         if len(raw) > MAX_IMAGE_BYTES:
             raise ValueError("Bild ist größer als 8 MB")
-        ext = {"jpeg": ".jpg", "png": ".png", "webp": ".webp"}[match.group(1)]
+
+        optimized = await self.hass.async_add_executor_job(self._optimize_image_bytes, raw, IMAGE_MAX_SIZE, WEBP_QUALITY)
         safe_base = re.sub(r"[^a-zA-Z0-9_-]+", "_", Path(filename).stem).strip("_") or dish_id
-        rel = f"images/{dish_id}_{safe_base[:40]}{ext}"
+        rel = f"images/{dish_id}_{safe_base[:40]}.webp"
         target = self.data_path / rel
-        await self.hass.async_add_executor_job(self._write_image, target, raw)
+        await self.hass.async_add_executor_job(self._write_image, target, optimized)
+
         d = self.dishes[dish_id]
-        await self.async_update_dish(dish_id, d["name"], d.get("category", ""), rel, d.get("active", True), d.get("ingredients", []))
+        await self.async_update_dish(
+            dish_id,
+            d["name"],
+            d.get("category", ""),
+            rel,
+            d.get("active", True),
+            d.get("ingredients", []),
+            d.get("categories", []),
+            d.get("recipe", ""),
+        )
         return rel
+
+    @staticmethod
+    def _optimize_image_bytes(raw: bytes, max_size=IMAGE_MAX_SIZE, quality=WEBP_QUALITY) -> bytes:
+        try:
+            with Image.open(BytesIO(raw)) as im:
+                im = ImageOps.exif_transpose(im)
+                if im.mode not in ("RGB", "RGBA"):
+                    im = im.convert("RGB")
+                if im.mode == "RGBA":
+                    background = Image.new("RGB", im.size, (255, 255, 255))
+                    background.paste(im, mask=im.getchannel("A"))
+                    im = background
+                else:
+                    im = im.convert("RGB")
+                im.thumbnail(max_size, Image.Resampling.LANCZOS)
+                out = BytesIO()
+                im.save(out, "WEBP", quality=quality, method=6)
+                return out.getvalue()
+        except (OSError, UnidentifiedImageError) as err:
+            raise ValueError("Bild konnte nicht verarbeitet werden") from err
 
     def _write_image(self, target: Path, raw: bytes):
         if not self.data_path.is_dir():
             raise FileNotFoundError(f"Datenordner nicht erreichbar: {self.data_path}")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(raw)
+
+    async def async_optimize_existing_images(self):
+        if not self.data_path.is_dir():
+            raise FileNotFoundError(f"Datenordner nicht erreichbar: {self.data_path}")
+        dishes = [dict(d) for d in self.dishes.values()]
+        optimized_count = 0
+        skipped = 0
+
+        for d in dishes:
+            rel = str(d.get("image") or "").strip()
+            if not rel:
+                skipped += 1
+                continue
+            src = (self.data_path / rel).resolve()
+            if self.data_path.resolve() not in src.parents or not src.is_file():
+                skipped += 1
+                continue
+            try:
+                raw = await self.hass.async_add_executor_job(src.read_bytes)
+                optimized = await self.hass.async_add_executor_job(self._optimize_image_bytes, raw, IMAGE_MAX_SIZE, WEBP_QUALITY)
+                new_rel = f"images/{d['id']}_optimized.webp"
+                target = self.data_path / new_rel
+                await self.hass.async_add_executor_job(self._write_image, target, optimized)
+                d["image"] = new_rel
+                d.pop("image_url", None)
+                d.pop("image_full_url", None)
+                optimized_count += 1
+            except (OSError, ValueError):
+                skipped += 1
+
+        await self.hass.async_add_executor_job(self._write_csv, dishes)
+        await self.hass.async_add_executor_job(self._write_ingredients_csv, dishes)
+        await self.hass.async_add_executor_job(self._write_recipes_csv, dishes)
+        await self.async_reload()
+        return {"optimized": optimized_count, "skipped": skipped}
+
 
     def _clean_ingredients(self, ingredients):
         clean = []
