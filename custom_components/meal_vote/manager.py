@@ -102,6 +102,31 @@ class MealVoteManager:
                 })
         return result
 
+
+    def _read_recipes_csv(self):
+        result: dict[str, str] = {}
+        if not self.recipes_csv_path.is_file():
+            return result
+        with self.recipes_csv_path.open("r", encoding="utf-8-sig", newline="") as f:
+            for row in csv.DictReader(f):
+                dish_id = (row.get("dish_id") or "").strip()
+                if dish_id:
+                    result[dish_id] = row.get("recipe") or ""
+        return result
+
+    def _write_recipes_csv(self, dishes):
+        if not self.data_path.is_dir():
+            raise FileNotFoundError(f"Datenordner nicht erreichbar: {self.data_path}")
+        tmp = self.recipes_csv_path.with_suffix(".tmp")
+        with tmp.open("w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=["dish_id", "recipe"])
+            writer.writeheader()
+            for d in dishes:
+                recipe = str(d.get("recipe", "") or "")
+                if recipe:
+                    writer.writerow({"dish_id": d["id"], "recipe": recipe})
+        os.replace(tmp, self.recipes_csv_path)
+
     def _write_csv(self, dishes):
         if not self.data_path.is_dir():
             raise FileNotFoundError(f"Datenordner nicht erreichbar: {self.data_path}")
