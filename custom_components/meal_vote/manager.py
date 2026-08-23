@@ -205,14 +205,30 @@ class MealVoteManager:
 
     async def async_add_dish(self, name: str, category: str = "", image: str = "", ingredients: list[dict] | None = None, categories: list[str] | None = None, recipe: str = ""):
         dish_id = uuid.uuid4().hex[:12]
-        dish = {"id": dish_id, "name": name.strip(), "category": (categories or [category])[0].strip() if (categories or [category]) else "",
-            "categories": [str(x).strip() for x in (categories or ([category] if category else [])) if str(x).strip()],
-            "recipe": recipe or "", "image": image.strip(), "active": True, "ingredients": self._clean_ingredients(ingredients or [])}
+        clean_categories = []
+        seen = set()
+        for item in (categories or ([category] if category else [])):
+            value = str(item or "").strip()
+            key = value.casefold()
+            if value and key not in seen:
+                clean_categories.append(value)
+                seen.add(key)
+        dish = {
+            "id": dish_id,
+            "name": name.strip(),
+            "category": clean_categories[0] if clean_categories else "",
+            "categories": clean_categories,
+            "recipe": str(recipe or ""),
+            "image": image.strip(),
+            "active": True,
+            "ingredients": self._clean_ingredients(ingredients or []),
+        }
         if not dish["name"]:
             raise ValueError("Name darf nicht leer sein")
         dishes = [dict(d) for d in self.dishes.values()] + [dish]
         await self.hass.async_add_executor_job(self._write_csv, dishes)
         await self.hass.async_add_executor_job(self._write_ingredients_csv, dishes)
+        await self.hass.async_add_executor_job(self._write_recipes_csv, dishes)
         await self.async_reload()
         return dish_id
 
@@ -221,16 +237,33 @@ class MealVoteManager:
             raise ValueError("Unbekanntes Gericht")
         if not name.strip():
             raise ValueError("Name darf nicht leer sein")
+
+        clean_categories = []
+        seen = set()
+        for item in (categories or ([category] if category else [])):
+            value = str(item or "").strip()
+            key = value.casefold()
+            if value and key not in seen:
+                clean_categories.append(value)
+                seen.add(key)
+
         dishes = [dict(d) for d in self.dishes.values()]
         for d in dishes:
             if d["id"] == dish_id:
-                d.update(name=name.strip(), category=category.strip(), image=image.strip(), active=bool(active))
+                d["name"] = name.strip()
+                d["categories"] = clean_categories
+                d["category"] = clean_categories[0] if clean_categories else ""
+                d["recipe"] = str(recipe or "")
+                d["image"] = image.strip()
+                d["active"] = bool(active)
                 if ingredients is not None:
                     d["ingredients"] = self._clean_ingredients(ingredients)
                 d.pop("image_url", None)
                 break
+
         await self.hass.async_add_executor_job(self._write_csv, dishes)
         await self.hass.async_add_executor_job(self._write_ingredients_csv, dishes)
+        await self.hass.async_add_executor_job(self._write_recipes_csv, dishes)
         await self.async_reload()
 
     async def async_delete_dish(self, dish_id: str):
@@ -239,6 +272,7 @@ class MealVoteManager:
         dishes = [d for d in self.dishes.values() if d["id"] != dish_id]
         await self.hass.async_add_executor_job(self._write_csv, dishes)
         await self.hass.async_add_executor_job(self._write_ingredients_csv, dishes)
+        await self.hass.async_add_executor_job(self._write_recipes_csv, dishes)
         self.state["votes"].pop(dish_id, None)
         self.state["history"].pop(dish_id, None)
         await self.async_reload()
