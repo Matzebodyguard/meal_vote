@@ -25,7 +25,11 @@ class MealWeekPlanCard extends HTMLElement {
     catch(e){this.shadowRoot.innerHTML=`<ha-card><div style="padding:16px">Wochenplan konnte nicht geladen werden: ${this.esc(e.message||e)}</div></ha-card>`;}
   }
   days(){return [['mon','Montag'],['tue','Dienstag'],['wed','Mittwoch'],['thu','Donnerstag'],['fri','Freitag'],['sat','Samstag'],['sun','Sonntag']];}
-  dish(id){return (this.data.dishes||[]).find(d=>d.id===id);}
+  dish(id){
+    if(id==='__away__')return{id:'__away__',name:'Wir sind nicht da!',special:true};
+    if(id==='__bread__')return{id:'__bread__',name:'Brot',special:true};
+    return (this.data.dishes||[]).find(d=>d.id===id);
+  }
   render(){
     const plan=this.data.week_plan||{};
     this.shadowRoot.innerHTML=`<style>
@@ -43,11 +47,11 @@ class MealWeekPlanCard extends HTMLElement {
       @media(max-width:650px){.week{grid-template-columns:repeat(2,minmax(0,1fr))}}
     </style>
     <ha-card>
-      <div class="head"><h2>📅 Wochenplan</h2><span class="badge">UI 0.5.7</span></div>
+      <div class="head"><h2>📅 Wochenplan</h2><span class="badge">UI 0.5.8</span></div>
       <div class="week">
         ${this.days().map(([key,label])=>{
           const dishes=(plan[key]||[]).map(id=>this.dish(id)).filter(Boolean);
-          return `<div class="day"><h3>${label}</h3>${dishes.length?dishes.map(d=>`<div class="meal"><strong>${this.esc(d.name)}</strong></div>`).join(''):'<div class="empty">–</div>'}</div>`;
+          return `<div class="day"><h3>${label}</h3>${dishes.length?dishes.map(d=>`<div class="meal"><strong>${d.special?'⭐ ':''}${this.esc(d.name)}</strong></div>`).join(''):'<div class="empty">–</div>'}</div>`;
         }).join('')}
       </div>
     </ha-card>`;

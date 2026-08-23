@@ -8,8 +8,13 @@ class MealWeekPlanAdminCard extends HTMLElement{
   esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   stem(v){let s=String(v||'').trim().toLocaleLowerCase('de-DE');for(const e of ['ern','en','er','es','e','n','s']){if(s.length>5&&s.endsWith(e)){s=s.slice(0,-e.length);break;}}return s;}
   days(){return [['mon','Montag'],['tue','Dienstag'],['wed','Mittwoch'],['thu','Donnerstag'],['fri','Freitag'],['sat','Samstag'],['sun','Sonntag']];}
-  dish(id){return this.data.dishes.find(d=>d.id===id);}
-  activeDishes(){return this.data.dishes.filter(d=>d.active!==false).sort((a,b)=>a.name.localeCompare(b.name,'de'));}
+  dish(id){
+    if(id==='__away__')return{id:'__away__',name:'Wir sind nicht da!',special:true};
+    if(id==='__bread__')return{id:'__bread__',name:'Brot',special:true};
+    return this.data.dishes.find(d=>d.id===id);
+  }
+  specialDishes(){return[{id:'__away__',name:'Wir sind nicht da!'},{id:'__bread__',name:'Brot'}];}
+  activeDishes(){return [...this.specialDishes(),...this.data.dishes.filter(d=>d.active!==false).sort((a,b)=>a.name.localeCompare(b.name,'de'))];}
   async save(plan){await this.ws('meal_vote/set_week_plan',{plan});this.data.week_plan=plan;this.render();}
   render(){
     const plan=this.data.week_plan||{}, dishes=this.activeDishes();
@@ -24,7 +29,7 @@ class MealWeekPlanAdminCard extends HTMLElement{
       @media(max-width:1000px){.week{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:650px){.week{grid-template-columns:repeat(2,minmax(0,1fr))}}
       .footer{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px}.shop{background:var(--primary-color);color:var(--text-primary-color);font-weight:700}
       dialog{border:0;border-radius:18px;padding:0;background:var(--card-background-color);color:var(--primary-text-color);width:min(620px,94vw);max-height:88vh}.modal{padding:20px}.list{max-height:55vh;overflow:auto}.item{display:flex;gap:10px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--divider-color)}.actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:15px}.actions button{padding:9px 12px;border-radius:10px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color)}
-    </style><ha-card><div class="weekShell"><div class="head"><h2>🛠️ Wochenplan verwalten</h2><span class="badge">UI 0.5.7</span><button id="reload" class="clear">↻</button></div>
+    </style><ha-card><div class="weekShell"><div class="head"><h2>🛠️ Wochenplan verwalten</h2><span class="badge">UI 0.5.8</span><button id="reload" class="clear">↻</button></div>
       <div class="week">${this.days().map(([key,label])=>{const ids=plan[key]||[];return `<div class="day"><h3>${label}</h3><div data-day="${key}">${ids.map((id,i)=>this.mealRow(key,id,i,dishes)).join('')}</div><button class="add" data-add="${key}">＋ Gericht</button></div>`}).join('')}</div>
       <div class="footer"><button id="clear" class="clear">Woche leeren</button><button id="shopping" class="shop">🛒 Wocheneinkauf erstellen</button></div>
       <dialog id="shopDialog"><div class="modal" id="shopModal"></div></dialog></div>
@@ -39,7 +44,7 @@ class MealWeekPlanAdminCard extends HTMLElement{
   mealRow(day,id,idx,dishes){
     const d=this.dish(id);
     if(!id||!d)return `<div class="meal"><select class="picker" data-meal-select="${day}:${idx}"><option value="">Gericht wählen …</option>${dishes.map(x=>`<option value="${this.esc(x.id)}">${this.esc(x.name)}</option>`).join('')}</select><button class="mealRemove" data-remove="${day}:${idx}" title="Entfernen">✕</button></div>`;
-    return `<div class="meal"><div class="mealCard" data-change="${day}:${idx}" title="Gericht ändern"><strong>${this.esc(d.name)}</strong><small>Antippen zum Ändern</small></div><button class="mealRemove" data-remove="${day}:${idx}" title="Entfernen">✕</button></div>`;
+    return `<div class="meal"><div class="mealCard" data-change="${day}:${idx}" title="Gericht ändern"><strong>${d.special?'⭐ ':''}${this.esc(d.name)}</strong><small>${d.special?'Systemeintrag':'Antippen zum Ändern'}</small></div><button class="mealRemove" data-remove="${day}:${idx}" title="Entfernen">✕</button></div>`;
   }
   showPicker(day,idx){
     const p=structuredClone(this.data.week_plan||{}),current=(p[day]||[])[Number(idx)]||'',dishes=this.activeDishes();

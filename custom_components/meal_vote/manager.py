@@ -509,7 +509,7 @@ class MealVoteManager:
         for day, dish_ids in (plan or {}).items():
             if day not in {"mon", "tue", "wed", "thu", "fri", "sat", "sun"}:
                 continue
-            ids = [str(x) for x in (dish_ids or []) if str(x) in self.dishes]
+            ids = [str(x) for x in (dish_ids or []) if str(x) in self.dishes or str(x) in {"__away__", "__bread__"}]
             cleaned[day] = ids
         self.state["week_plan"] = cleaned
         await self._save()
