@@ -9,8 +9,7 @@ class MealVoteCard extends HTMLElement {
   render(){
     const source=this.data.dishes.filter(d=>this._showInactive||d.active!==false);
     const cats=['Alle',...new Set(source.flatMap(d=>(d.categories&&d.categories.length?d.categories:[d.category]).filter(Boolean)))];
-    let dishes=source.filter(d=>{const q=this._search.toLowerCase();const ing=(d.ingredients||[]).map(i=>i.name).join(' ').toLowerCase();return(!q||d.name.toLowerCase().includes(q)||((d.categories||[d.category]).filter(Boolean).join(' ')).toLowerCase().includes(q)||(d.voters||[]).join(' ').toLowerCase().includes(q)||ing.includes(q))&&(this._category==='Alle'||(d.categories||[d.category]).includes(this._category));});
-    dishes.sort((a,b)=>this.sorter(a,b));
+    const dishes=this.filteredDishes();
     const sync=this.data.sync||{};const syncText=sync.error?'⚠ NAS offline – lokaler Stand':(sync.last_ok?`✓ Sync ${new Date(sync.last_ok).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}`:'Noch nicht synchronisiert');
     this.shadowRoot.innerHTML=`<style>
       :host{display:block;width:100%;max-width:none}*{box-sizing:border-box}ha-card{padding:16px;width:100%;max-width:none}
@@ -27,15 +26,50 @@ class MealVoteCard extends HTMLElement {
       .ingredient-suggestion small{color:var(--secondary-text-color);white-space:nowrap}
           .ingredientTools button.pantryActive{background:var(--primary-color);color:var(--text-primary-color);font-weight:700}
 </style><ha-card>
-      <div class="top"><input class="search" id="search" placeholder="🔎 Gericht, Kategorie, Person oder Zutat suchen…" value="${this.esc(this._search)}"><select id="sort"><option value="votes">Meiste Stimmen</option><option value="oldest">Lange nicht gekocht</option><option value="recent">Zuletzt gekocht</option><option value="name">Name</option></select><span style="font-size:.8rem;opacity:.7;font-weight:700">UI 0.6.7</span><button id="reload">↻ Sync</button><button id="pantry">🏠 Standardvorrat</button><button id="optimizeImages">🖼 Bilder optimieren</button><button id="inactive">${this._showInactive?'Aktive':'Verwaltung'}</button><button id="importRecipe">📥 Rezept importieren</button><button id="add" class="add">＋ Gericht</button></div>
+      <div class="top"><input class="search" id="search" placeholder="🔎 Gericht, Kategorie, Person oder Zutat suchen…" value="${this.esc(this._search)}"><select id="sort"><option value="votes">Meiste Stimmen</option><option value="oldest">Lange nicht gekocht</option><option value="recent">Zuletzt gekocht</option><option value="name">Name</option></select><span style="font-size:.8rem;opacity:.7;font-weight:700">UI 0.6.8</span><button id="reload">↻ Sync</button><button id="pantry">🏠 Standardvorrat</button><button id="optimizeImages">🖼 Bilder optimieren</button><button id="inactive">${this._showInactive?'Aktive':'Verwaltung'}</button><button id="importRecipe">📥 Rezept importieren</button><button id="add" class="add">＋ Gericht</button></div>
       <div class="status ${sync.error?'error':''}">${this.esc(syncText)} · automatisch alle ${sync.interval_minutes||10} Min.</div>
       <div class="cats">${cats.map(c=>`<button data-cat="${this.esc(c)}" class="${c===this._category?'active':''}">${this.esc(c)}</button>`).join('')}</div>
       <div class="grid">${dishes.length?dishes.map(d=>this.dishHtml(d)).join(''):'<div class="empty">Keine Gerichte gefunden.</div>'}</div>
       <dialog id="dishDialog"><div class="modal" id="dishModal"></div></dialog><dialog id="voteDialog"><div class="modal" id="voteModal"></div></dialog><dialog id="infoDialog"><div class="modal" id="infoModal"></div></dialog><dialog id="shoppingDialog"><div class="modal" id="shoppingModal"></div></dialog><dialog id="pantryDialog"><div class="modal" id="pantryModal"></div></dialog><dialog id="importDialog"><div class="modal" id="importModal"></div></dialog>
     </ha-card>`;
-    const sort=this.shadowRoot.querySelector('#sort');sort.value=this._sort;sort.onchange=e=>{this._sort=e.target.value;this.render();};
-    this.shadowRoot.querySelector('#search').oninput=e=>{this._search=e.target.value;this.render();};this.shadowRoot.querySelector('#reload').onclick=()=>this.call('reload');this.shadowRoot.querySelector('#importRecipe').onclick=()=>this.openImportDialog();this.shadowRoot.querySelector('#add').onclick=()=>this.openDishDialog();this.shadowRoot.querySelector('#pantry').onclick=()=>this.openPantryDialog();this.shadowRoot.querySelector('#optimizeImages').onclick=async()=>{if(!confirm('Bestehende Gerichtsbilder optimieren? Es werden neue WebP-Dateien angelegt und die Gerichtsliste darauf umgestellt. Die Originaldateien bleiben auf dem NAS erhalten.'))return;const b=this.shadowRoot.querySelector('#optimizeImages');b.disabled=true;try{const r=await this.ws('meal_vote/optimize_images');alert(`${r.optimized||0} Bilder optimiert · ${r.skipped||0} übersprungen`);await this.load();}catch(e){alert(e.message||e);}finally{b.disabled=false;}};this.shadowRoot.querySelector('#inactive').onclick=()=>{this._showInactive=!this._showInactive;this._category='Alle';this.render();};this.shadowRoot.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{this._category=b.dataset.cat;this.render();});this.shadowRoot.querySelectorAll('[data-vote]').forEach(b=>b.onclick=()=>this.openVoteDialog(this.findDish(b.dataset.vote)));this.shadowRoot.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>this.openDishDialog(this.findDish(b.dataset.edit)));this.shadowRoot.querySelectorAll('[data-cooked]').forEach(b=>b.onclick=()=>{if(confirm('Dieses Gericht als gekocht markieren? Nur seine Stimmen werden gelöscht.'))this.call('mark_cooked',{dish_id:b.dataset.cooked});});this.shadowRoot.querySelectorAll('[data-ing]').forEach(b=>b.onclick=()=>this.openIngredients(this.findDish(b.dataset.ing)));this.shadowRoot.querySelectorAll('[data-shop]').forEach(b=>b.onclick=()=>this.openShoppingDialog(this.findDish(b.dataset.shop)));
+    const sort=this.shadowRoot.querySelector('#sort');sort.value=this._sort;sort.onchange=e=>{this._sort=e.target.value;this.updateDishGrid();};
+    this.shadowRoot.querySelector('#search').oninput=e=>{
+      this._search=e.target.value;
+      this.updateDishGrid();
+    };this.shadowRoot.querySelector('#reload').onclick=()=>this.call('reload');this.shadowRoot.querySelector('#importRecipe').onclick=()=>this.openImportDialog();this.shadowRoot.querySelector('#add').onclick=()=>this.openDishDialog();this.shadowRoot.querySelector('#pantry').onclick=()=>this.openPantryDialog();this.shadowRoot.querySelector('#optimizeImages').onclick=async()=>{if(!confirm('Bestehende Gerichtsbilder optimieren? Es werden neue WebP-Dateien angelegt und die Gerichtsliste darauf umgestellt. Die Originaldateien bleiben auf dem NAS erhalten.'))return;const b=this.shadowRoot.querySelector('#optimizeImages');b.disabled=true;try{const r=await this.ws('meal_vote/optimize_images');alert(`${r.optimized||0} Bilder optimiert · ${r.skipped||0} übersprungen`);await this.load();}catch(e){alert(e.message||e);}finally{b.disabled=false;}};this.shadowRoot.querySelector('#inactive').onclick=()=>{this._showInactive=!this._showInactive;this._category='Alle';this.render();};this.shadowRoot.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{this._category=b.dataset.cat;this.render();});this.shadowRoot.querySelectorAll('[data-vote]').forEach(b=>b.onclick=()=>this.openVoteDialog(this.findDish(b.dataset.vote)));this.shadowRoot.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>this.openDishDialog(this.findDish(b.dataset.edit)));this.shadowRoot.querySelectorAll('[data-cooked]').forEach(b=>b.onclick=()=>{if(confirm('Dieses Gericht als gekocht markieren? Nur seine Stimmen werden gelöscht.'))this.call('mark_cooked',{dish_id:b.dataset.cooked});});this.shadowRoot.querySelectorAll('[data-ing]').forEach(b=>b.onclick=()=>this.openIngredients(this.findDish(b.dataset.ing)));this.shadowRoot.querySelectorAll('[data-shop]').forEach(b=>b.onclick=()=>this.openShoppingDialog(this.findDish(b.dataset.shop)));
   }
+  filteredDishes(){
+    const source=this.data.dishes.filter(d=>this._showInactive||d.active!==false);
+    const q=(this._search||'').toLocaleLowerCase('de-DE');
+    let dishes=source.filter(d=>{
+      const ing=(d.ingredients||[]).map(i=>i.name).join(' ').toLocaleLowerCase('de-DE');
+      const cats=(d.categories||[d.category]).filter(Boolean).join(' ').toLocaleLowerCase('de-DE');
+      return (!q
+        || d.name.toLocaleLowerCase('de-DE').includes(q)
+        || cats.includes(q)
+        || (d.voters||[]).join(' ').toLocaleLowerCase('de-DE').includes(q)
+        || ing.includes(q))
+        && (this._category==='Alle'||(d.categories||[d.category]).includes(this._category));
+    });
+    dishes.sort((a,b)=>this.sorter(a,b));
+    return dishes;
+  }
+
+  updateDishGrid(){
+    const grid=this.shadowRoot.querySelector('.grid');
+    if(!grid)return;
+    const dishes=this.filteredDishes();
+    grid.innerHTML=dishes.length
+      ? dishes.map(d=>this.dishHtml(d)).join('')
+      : '<div class="empty">Keine Gerichte gefunden.</div>';
+
+    this.shadowRoot.querySelectorAll('[data-vote]').forEach(b=>b.onclick=()=>this.openVoteDialog(this.findDish(b.dataset.vote)));
+    this.shadowRoot.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>this.openDishDialog(this.findDish(b.dataset.edit)));
+    this.shadowRoot.querySelectorAll('[data-cooked]').forEach(b=>b.onclick=()=>{if(confirm('Dieses Gericht als gekocht markieren? Nur seine Stimmen werden gelöscht.'))this.call('mark_cooked',{dish_id:b.dataset.cooked});});
+    this.shadowRoot.querySelectorAll('[data-ing]').forEach(b=>b.onclick=()=>this.openIngredients(this.findDish(b.dataset.ing)));
+    this.shadowRoot.querySelectorAll('[data-shop]').forEach(b=>b.onclick=()=>this.openShoppingDialog(this.findDish(b.dataset.shop)));
+  }
+
   sorter(a,b){if(this._sort==='name')return a.name.localeCompare(b.name,'de');if(this._sort==='recent')return(this.time(b.last_cooked)-this.time(a.last_cooked))||a.name.localeCompare(b.name,'de');if(this._sort==='oldest'){const ta=this.time(a.last_cooked),tb=this.time(b.last_cooked);if(!ta&&!tb)return a.name.localeCompare(b.name,'de');if(!ta)return-1;if(!tb)return 1;return ta-tb;}return b.vote_count-a.vote_count||a.name.localeCompare(b.name,'de');}
   time(v){return v?new Date(v).getTime():0;} findDish(id){return this.data.dishes.find(d=>d.id===id);}
   relativeDate(v){if(!v)return'noch nie';const days=Math.floor((Date.now()-new Date(v).getTime())/86400000);if(days<=0)return'heute';if(days===1)return'gestern';return`vor ${days} Tagen`;}
@@ -547,4 +581,4 @@ Kartoffeln schneiden.`;
   async uploadImage(dishId,file){if(file.size>8*1024*1024)throw new Error('Das Bild darf maximal 8 MB groß sein.');const dataUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsDataURL(file);});await this.ws('meal_vote/upload_image',{dish_id:dishId,filename:file.name,data_url:dataUrl});}
   esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}getCardSize(){return 7;}
 }
-if(!customElements.get('meal-vote-card')) customElements.define('meal-vote-card',MealVoteCard);console.info('[meal_vote] UI 0.6.7 loaded');window.customCards=window.customCards||[];window.customCards.push({type:'meal-vote-card',name:'Essenswahl',description:'Familien-Voting für Gerichte'});
+if(!customElements.get('meal-vote-card')) customElements.define('meal-vote-card',MealVoteCard);console.info('[meal_vote] UI 0.6.8 loaded');window.customCards=window.customCards||[];window.customCards.push({type:'meal-vote-card',name:'Essenswahl',description:'Familien-Voting für Gerichte'});
