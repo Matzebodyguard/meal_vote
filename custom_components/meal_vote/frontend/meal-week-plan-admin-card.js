@@ -39,7 +39,7 @@ class MealWeekPlanAdminCard extends HTMLElement{
       .specialGrid,.pickerGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.specialGrid{margin-bottom:14px}
       .pickCard{border:1px solid var(--divider-color);border-radius:14px;overflow:hidden;background:var(--secondary-background-color);cursor:pointer;text-align:left;padding:0}.pickCard img{width:100%;height:90px;object-fit:cover;display:block}.pickBody{padding:10px}.pickBody strong{display:block;line-height:1.2}.pickBody small{opacity:.65}.specialPick{padding:14px;font-weight:700}
 
-    </style><ha-card><div class="weekShell"><div class="head"><h2>🛠️ Wochenplan verwalten</h2><span class="badge">UI 0.6.13</span><button id="reload" class="clear">↻</button></div>
+    </style><ha-card><div class="weekShell"><div class="head"><h2>🛠️ Wochenplan verwalten</h2><span class="badge">UI 0.6.14</span><button id="reload" class="clear">↻</button></div>
       <div class="week">${this.days().map(([key,label])=>{const ids=plan[key]||[];return `<div class="day"><h3>${label}</h3><div data-day="${key}">${ids.map((id,i)=>this.mealRow(key,id,i,dishes)).join('')}</div><button class="add" data-add="${key}">＋ Gericht</button></div>`}).join('')}</div>
       <div class="footer"><button id="clear" class="clear">Woche leeren</button><button id="shopping" class="shop">🛒 Wocheneinkauf erstellen</button></div>
       <dialog id="shopDialog"><div class="modal" id="shopModal"></div></dialog><dialog id="mealPickerDialog"><div class="modal" id="mealPickerModal"></div></dialog></div>
