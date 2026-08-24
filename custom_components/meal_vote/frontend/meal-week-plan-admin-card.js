@@ -14,7 +14,12 @@ class MealWeekPlanAdminCard extends HTMLElement{
     return this.data.dishes.find(d=>d.id===id);
   }
   specialDishes(){return[{id:'__away__',name:'Wir sind nicht da!'},{id:'__bread__',name:'Brot'}];}
-  activeDishes(){return [...this.specialDishes(),...this.data.dishes.filter(d=>d.active!==false).sort((a,b)=>a.name.localeCompare(b.name,'de'))];}
+  activeDishes(){
+    const normal=this.data.dishes
+      .filter(d=>d.active!==false)
+      .sort((a,b)=>(Number(b.vote_count)||0)-(Number(a.vote_count)||0)||a.name.localeCompare(b.name,'de'));
+    return [...this.specialDishes(),...normal];
+  }
   async save(plan){await this.ws('meal_vote/set_week_plan',{plan});this.data.week_plan=plan;this.render();}
   render(){
     const plan=this.data.week_plan||{}, dishes=this.activeDishes();
@@ -34,7 +39,7 @@ class MealWeekPlanAdminCard extends HTMLElement{
       .specialGrid,.pickerGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.specialGrid{margin-bottom:14px}
       .pickCard{border:1px solid var(--divider-color);border-radius:14px;overflow:hidden;background:var(--secondary-background-color);cursor:pointer;text-align:left;padding:0}.pickCard img{width:100%;height:90px;object-fit:cover;display:block}.pickBody{padding:10px}.pickBody strong{display:block;line-height:1.2}.pickBody small{opacity:.65}.specialPick{padding:14px;font-weight:700}
 
-    </style><ha-card><div class="weekShell"><div class="head"><h2>🛠️ Wochenplan verwalten</h2><span class="badge">UI 0.6.12</span><button id="reload" class="clear">↻</button></div>
+    </style><ha-card><div class="weekShell"><div class="head"><h2>🛠️ Wochenplan verwalten</h2><span class="badge">UI 0.6.13</span><button id="reload" class="clear">↻</button></div>
       <div class="week">${this.days().map(([key,label])=>{const ids=plan[key]||[];return `<div class="day"><h3>${label}</h3><div data-day="${key}">${ids.map((id,i)=>this.mealRow(key,id,i,dishes)).join('')}</div><button class="add" data-add="${key}">＋ Gericht</button></div>`}).join('')}</div>
       <div class="footer"><button id="clear" class="clear">Woche leeren</button><button id="shopping" class="shop">🛒 Wocheneinkauf erstellen</button></div>
       <dialog id="shopDialog"><div class="modal" id="shopModal"></div></dialog><dialog id="mealPickerDialog"><div class="modal" id="mealPickerModal"></div></dialog></div>
@@ -78,7 +83,7 @@ class MealWeekPlanAdminCard extends HTMLElement{
       modal.querySelector('#specialPicker').innerHTML=specials.map(d=>`<button class="pickCard specialPick" data-pick="${this.esc(d.id)}">⭐ ${this.esc(d.name)}</button>`).join('');
       modal.querySelector('#pickerGrid').innerHTML=filtered.length?filtered.map(d=>`<button class="pickCard" data-pick="${this.esc(d.id)}">
         ${d.image_url?`<img src="${this.esc(d.image_url)}" loading="lazy">`:''}
-        <div class="pickBody"><strong>${this.esc(d.name)}</strong><small>${this.esc((d.categories&&d.categories.length?d.categories.join(' · '):(d.category||'')))}</small></div>
+        <div class="pickBody"><strong>${this.esc(d.name)}</strong><small>👍 ${Number(d.vote_count)||0} · ${this.esc((d.categories&&d.categories.length?d.categories.join(' · '):(d.category||'')))}</small></div>
       </button>`).join(''):'<div class="empty">Keine Gerichte gefunden.</div>';
 
       modal.querySelectorAll('[data-pick]').forEach(b=>b.onclick=async()=>{
