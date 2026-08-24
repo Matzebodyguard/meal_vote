@@ -47,7 +47,7 @@ class MealWeekPlanCard extends HTMLElement {
       @media(max-width:650px){.week{grid-template-columns:repeat(2,minmax(0,1fr))}}
     </style>
     <ha-card>
-      <div class="head"><h2>📅 Wochenplan</h2><span class="badge">UI 0.6.8</span></div>
+      <div class="head"><h2>📅 Wochenplan</h2><span class="badge">UI 0.6.9</span></div>
       <div class="week">
         ${this.days().map(([key,label])=>{
           const dishes=(plan[key]||[]).map(id=>this.dish(id)).filter(Boolean);
