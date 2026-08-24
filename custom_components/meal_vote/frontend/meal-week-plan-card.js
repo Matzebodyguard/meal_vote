@@ -36,23 +36,23 @@ class MealWeekPlanCard extends HTMLElement {
     this.shadowRoot.innerHTML=`<style>
       :host{display:block;width:100%;max-width:none!important;min-width:0}
       *{box-sizing:border-box}
-      ha-card{display:block;width:100%!important;max-width:none!important;min-width:0;margin:0;padding:14px;background:var(--ha-card-background,var(--card-background-color));border-radius:20px}
-      .head{display:flex;align-items:center;gap:10px;margin-bottom:14px}.head h2{margin:0;flex:1;font-size:1.45rem;font-weight:800}.badge{font-size:.72rem;opacity:.45}
-      .week{display:grid;width:100%;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;align-items:stretch}
-      .day{border:1px solid var(--divider-color);border-radius:18px;padding:10px;min-width:0;min-height:150px;background:var(--secondary-background-color);display:flex;flex-direction:column;gap:9px}
+      ha-card{display:block;width:100%!important;max-width:none!important;min-width:0;margin:0;padding:10px 12px;background:var(--ha-card-background,var(--card-background-color));border-radius:20px}
+      .head{display:flex;align-items:center;gap:10px;margin-bottom:8px}.head h2{margin:0;flex:1;font-size:1.25rem;font-weight:800}.badge{font-size:.72rem;opacity:.45}
+      .week{display:grid;width:100%;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;align-items:stretch}
+      .day{border:1px solid var(--divider-color);border-radius:14px;padding:7px;min-width:0;min-height:105px;background:var(--secondary-background-color);display:flex;flex-direction:column;gap:6px}
       .day.today{outline:2px solid var(--primary-color);outline-offset:-2px}
-      .dayHeader{display:flex;align-items:center;justify-content:center;gap:6px;min-height:30px;padding:4px 6px 7px;border-bottom:1px solid var(--divider-color)}
-      .dayHeader h3{margin:0;text-align:center;font-size:1rem;font-weight:800}.todayDot{width:7px;height:7px;border-radius:50%;background:var(--primary-color);flex:0 0 auto}
-      .meal{position:relative;border-radius:14px;overflow:hidden;background:var(--card-background-color);border:1px solid var(--divider-color);box-shadow:var(--ha-card-box-shadow)}
-      .mealImg{width:100%;height:86px;object-fit:cover;display:block;background:var(--secondary-background-color)}
-      .mealBody{padding:10px;min-height:54px;display:flex;align-items:center;justify-content:center;text-align:center}.mealBody strong{font-size:.98rem;line-height:1.2;overflow-wrap:anywhere}
-      .special{min-height:78px;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px;font-weight:800;font-size:1rem}
-      .empty{flex:1;display:flex;align-items:center;justify-content:center;min-height:80px;color:var(--secondary-text-color);opacity:.35;font-size:1.6rem}
+      .dayHeader{display:flex;align-items:center;justify-content:center;gap:6px;min-height:24px;padding:2px 4px 5px;border-bottom:1px solid var(--divider-color)}
+      .dayHeader h3{margin:0;text-align:center;font-size:.9rem;font-weight:800}.todayDot{width:7px;height:7px;border-radius:50%;background:var(--primary-color);flex:0 0 auto}
+      .meal{position:relative;border-radius:11px;overflow:hidden;background:var(--card-background-color);border:1px solid var(--divider-color);box-shadow:var(--ha-card-box-shadow)}
+      .mealImg{width:100%;height:52px;object-fit:cover;display:block;background:var(--secondary-background-color)}
+      .mealBody{padding:6px;min-height:34px;display:flex;align-items:center;justify-content:center;text-align:center}.mealBody strong{font-size:.88rem;line-height:1.15;overflow-wrap:anywhere}
+      .special{min-height:48px;display:flex;align-items:center;justify-content:center;text-align:center;padding:7px;font-weight:800;font-size:.9rem}
+      .empty{flex:1;display:flex;align-items:center;justify-content:center;min-height:45px;color:var(--secondary-text-color);opacity:.35;font-size:1.6rem}
       @media(max-width:1000px){.week{grid-template-columns:repeat(4,minmax(0,1fr))}}
       @media(max-width:650px){.week{grid-template-columns:repeat(2,minmax(0,1fr))}}
     </style>
     <ha-card>
-      <div class="head"><h2>📅 Wochenplan</h2><span class="badge">UI 0.6.14</span></div>
+      <div class="head"><h2>📅 Wochenplan</h2><span class="badge">UI 0.6.15</span></div>
       <div class="week">
         ${this.days().map(([key,label],index)=>{
           const dishes=(plan[key]||[]).map(id=>this.dish(id)).filter(Boolean);
