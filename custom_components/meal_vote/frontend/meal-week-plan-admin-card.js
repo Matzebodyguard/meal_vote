@@ -9,11 +9,11 @@ class MealWeekPlanAdminCard extends HTMLElement{
   stem(v){let s=String(v||'').trim().toLocaleLowerCase('de-DE');for(const e of ['ern','en','er','es','e','n','s']){if(s.length>5&&s.endsWith(e)){s=s.slice(0,-e.length);break;}}return s;}
   days(){return [['mon','Montag'],['tue','Dienstag'],['wed','Mittwoch'],['thu','Donnerstag'],['fri','Freitag'],['sat','Samstag'],['sun','Sonntag']];}
   dish(id){
-    if(id==='__away__')return{id:'__away__',name:'Wir sind nicht da!',special:true};
-    if(id==='__bread__')return{id:'__bread__',name:'Brot',special:true};
+    if(id==='__away__')return{id:'__away__',name:'Wir sind nicht da!',special:true,image_url:'/meal_vote_static/special-away.webp?v=0.6.16'};
+    if(id==='__bread__')return{id:'__bread__',name:'Brot',special:true,image_url:'/meal_vote_static/special-bread.webp?v=0.6.16'};
     return this.data.dishes.find(d=>d.id===id);
   }
-  specialDishes(){return[{id:'__away__',name:'Wir sind nicht da!'},{id:'__bread__',name:'Brot'}];}
+  specialDishes(){return[{id:'__away__',name:'Wir sind nicht da!',special:true,image_url:'/meal_vote_static/special-away.webp?v=0.6.16'},{id:'__bread__',name:'Brot',special:true,image_url:'/meal_vote_static/special-bread.webp?v=0.6.16'}];}
   activeDishes(){
     const normal=this.data.dishes
       .filter(d=>d.active!==false)
@@ -39,7 +39,7 @@ class MealWeekPlanAdminCard extends HTMLElement{
       .specialGrid,.pickerGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.specialGrid{margin-bottom:14px}
       .pickCard{border:1px solid var(--divider-color);border-radius:14px;overflow:hidden;background:var(--secondary-background-color);cursor:pointer;text-align:left;padding:0}.pickCard img{width:100%;height:90px;object-fit:cover;display:block}.pickBody{padding:10px}.pickBody strong{display:block;line-height:1.2}.pickBody small{opacity:.65}.specialPick{padding:14px;font-weight:700}
 
-    </style><ha-card><div class="weekShell"><div class="head"><h2>🛠️ Wochenplan verwalten</h2><span class="badge">UI 0.6.15</span><button id="reload" class="clear">↻</button></div>
+    </style><ha-card><div class="weekShell"><div class="head"><h2>🛠️ Wochenplan verwalten</h2><span class="badge">UI 0.6.16</span><button id="reload" class="clear">↻</button></div>
       <div class="week">${this.days().map(([key,label])=>{const ids=plan[key]||[];return `<div class="day"><h3>${label}</h3><div data-day="${key}">${ids.map((id,i)=>this.mealRow(key,id,i,dishes)).join('')}</div><button class="add" data-add="${key}">＋ Gericht</button></div>`}).join('')}</div>
       <div class="footer"><button id="clear" class="clear">Woche leeren</button><button id="shopping" class="shop">🛒 Wocheneinkauf erstellen</button></div>
       <dialog id="shopDialog"><div class="modal" id="shopModal"></div></dialog><dialog id="mealPickerDialog"><div class="modal" id="mealPickerModal"></div></dialog></div>
@@ -80,7 +80,7 @@ class MealWeekPlanAdminCard extends HTMLElement{
           && (cat==='Alle'||cats.includes(cat));
       });
 
-      modal.querySelector('#specialPicker').innerHTML=specials.map(d=>`<button class="pickCard specialPick" data-pick="${this.esc(d.id)}">⭐ ${this.esc(d.name)}</button>`).join('');
+      modal.querySelector('#specialPicker').innerHTML=specials.map(d=>`<button class="pickCard" data-pick="${this.esc(d.id)}">${d.image_url?`<img src="${this.esc(d.image_url)}" loading="lazy">`:''}<div class="pickBody"><strong>${this.esc(d.name)}</strong><small>Systemeintrag</small></div></button>`).join('');
       modal.querySelector('#pickerGrid').innerHTML=filtered.length?filtered.map(d=>`<button class="pickCard" data-pick="${this.esc(d.id)}">
         ${d.image_url?`<img src="${this.esc(d.image_url)}" loading="lazy">`:''}
         <div class="pickBody"><strong>${this.esc(d.name)}</strong><small>👍 ${Number(d.vote_count)||0} · ${this.esc((d.categories&&d.categories.length?d.categories.join(' · '):(d.category||'')))}</small></div>

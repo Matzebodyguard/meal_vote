@@ -26,8 +26,8 @@ class MealWeekPlanCard extends HTMLElement {
   }
   days(){return [['mon','Montag'],['tue','Dienstag'],['wed','Mittwoch'],['thu','Donnerstag'],['fri','Freitag'],['sat','Samstag'],['sun','Sonntag']];}
   dish(id){
-    if(id==='__away__')return{id:'__away__',name:'Wir sind nicht da!',special:true};
-    if(id==='__bread__')return{id:'__bread__',name:'Brot',special:true};
+    if(id==='__away__')return{id:'__away__',name:'Wir sind nicht da!',special:true,image_url:'/meal_vote_static/special-away.webp?v=0.6.16'};
+    if(id==='__bread__')return{id:'__bread__',name:'Brot',special:true,image_url:'/meal_vote_static/special-bread.webp?v=0.6.16'};
     return (this.data.dishes||[]).find(d=>d.id===id);
   }
   render(){
@@ -52,7 +52,7 @@ class MealWeekPlanCard extends HTMLElement {
       @media(max-width:650px){.week{grid-template-columns:repeat(2,minmax(0,1fr))}}
     </style>
     <ha-card>
-      <div class="head"><h2>📅 Wochenplan</h2><span class="badge">UI 0.6.15</span></div>
+      <div class="head"><h2>📅 Wochenplan</h2><span class="badge">UI 0.6.16</span></div>
       <div class="week">
         ${this.days().map(([key,label],index)=>{
           const dishes=(plan[key]||[]).map(id=>this.dish(id)).filter(Boolean);
@@ -60,7 +60,7 @@ class MealWeekPlanCard extends HTMLElement {
           return `<div class="day ${isToday?'today':''}">
             <div class="dayHeader">${isToday?'<span class="todayDot"></span>':''}<h3>${label}</h3></div>
             ${dishes.length?dishes.map(d=>d.special
-              ? `<div class="meal special">⭐ ${this.esc(d.name)}</div>`
+              ? `<div class="meal">${d.image_url?`<img class="mealImg" src="${this.esc(d.image_url)}" loading="lazy">`:''}<div class="mealBody"><strong>${this.esc(d.name)}</strong></div></div>`
               : `<div class="meal">${d.image_url?`<img class="mealImg" src="${this.esc(d.image_url)}" loading="lazy">`:''}<div class="mealBody"><strong>${this.esc(d.name)}</strong></div></div>`
             ).join(''):'<div class="empty">·</div>'}
           </div>`;
