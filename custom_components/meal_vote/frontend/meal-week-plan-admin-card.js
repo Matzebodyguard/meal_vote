@@ -29,31 +29,83 @@ class MealWeekPlanAdminCard extends HTMLElement{
       @media(max-width:1000px){.week{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:650px){.week{grid-template-columns:repeat(2,minmax(0,1fr))}}
       .footer{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px}.shop{background:var(--primary-color);color:var(--text-primary-color);font-weight:700}
       dialog{border:0;border-radius:18px;padding:0;background:var(--card-background-color);color:var(--primary-text-color);width:min(620px,94vw);max-height:88vh}.modal{padding:20px}.list{max-height:55vh;overflow:auto}.item{display:flex;gap:10px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--divider-color)}.actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:15px}.actions button{padding:9px 12px;border-radius:10px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color)}
-    </style><ha-card><div class="weekShell"><div class="head"><h2>🛠️ Wochenplan verwalten</h2><span class="badge">UI 0.6.11</span><button id="reload" class="clear">↻</button></div>
+      .pickerSearchWrap{position:relative;margin:12px 0}.pickerSearchWrap input{width:100%;padding-right:42px}.pickerClear{position:absolute;right:5px;top:50%;transform:translateY(-50%);border:0;background:transparent;padding:6px 9px;font-size:1.1rem}
+      .pickerCats{display:flex;gap:7px;overflow:auto;padding-bottom:8px;margin-bottom:8px}.pickerCats button.active{background:var(--primary-color);color:var(--text-primary-color)}
+      .specialGrid,.pickerGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.specialGrid{margin-bottom:14px}
+      .pickCard{border:1px solid var(--divider-color);border-radius:14px;overflow:hidden;background:var(--secondary-background-color);cursor:pointer;text-align:left;padding:0}.pickCard img{width:100%;height:90px;object-fit:cover;display:block}.pickBody{padding:10px}.pickBody strong{display:block;line-height:1.2}.pickBody small{opacity:.65}.specialPick{padding:14px;font-weight:700}
+
+    </style><ha-card><div class="weekShell"><div class="head"><h2>🛠️ Wochenplan verwalten</h2><span class="badge">UI 0.6.12</span><button id="reload" class="clear">↻</button></div>
       <div class="week">${this.days().map(([key,label])=>{const ids=plan[key]||[];return `<div class="day"><h3>${label}</h3><div data-day="${key}">${ids.map((id,i)=>this.mealRow(key,id,i,dishes)).join('')}</div><button class="add" data-add="${key}">＋ Gericht</button></div>`}).join('')}</div>
       <div class="footer"><button id="clear" class="clear">Woche leeren</button><button id="shopping" class="shop">🛒 Wocheneinkauf erstellen</button></div>
-      <dialog id="shopDialog"><div class="modal" id="shopModal"></div></dialog></div>
+      <dialog id="shopDialog"><div class="modal" id="shopModal"></div></dialog><dialog id="mealPickerDialog"><div class="modal" id="mealPickerModal"></div></dialog></div>
     </ha-card>`;
     this.shadowRoot.querySelector('#reload').onclick=()=>this.load();
     this.shadowRoot.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const p=structuredClone(this.data.week_plan||{});(p[b.dataset.add]??=[]).push('');this.data.week_plan=p;this.render();});
-    this.shadowRoot.querySelectorAll('[data-meal-select]').forEach(s=>s.onchange=async()=>{const [day,idx]=s.dataset.mealSelect.split(':');const p=structuredClone(this.data.week_plan||{});p[day]=p[day]||[];p[day][Number(idx)]=s.value;p[day]=p[day].filter(Boolean);await this.save(p);});this.shadowRoot.querySelectorAll('[data-change]').forEach(c=>c.onclick=()=>{const [day,idx]=c.dataset.change.split(':');this.showPicker(day,idx);});
+    this.shadowRoot.querySelectorAll('[data-change]').forEach(c=>c.onclick=()=>{const [day,idx]=c.dataset.change.split(':');this.openMealPicker(day,idx);});
     this.shadowRoot.querySelectorAll('[data-remove]').forEach(b=>b.onclick=async()=>{const [day,idx]=b.dataset.remove.split(':');const p=structuredClone(this.data.week_plan||{});p[day]=(p[day]||[]).filter((_,i)=>i!==Number(idx));await this.save(p);});
     this.shadowRoot.querySelector('#clear').onclick=async()=>{if(confirm('Den gesamten Wochenplan leeren?'))await this.save({});};
     this.shadowRoot.querySelector('#shopping').onclick=()=>this.openShopping();
   }
   mealRow(day,id,idx,dishes){
     const d=this.dish(id);
-    if(!id||!d)return `<div class="meal"><select class="picker" data-meal-select="${day}:${idx}"><option value="">Gericht wählen …</option>${dishes.map(x=>`<option value="${this.esc(x.id)}">${this.esc(x.name)}</option>`).join('')}</select><button class="mealRemove" data-remove="${day}:${idx}" title="Entfernen">✕</button></div>`;
+    if(!id||!d)return `<div class="meal"><button class="mealCard" data-change="${day}:${idx}" title="Gericht wählen"><strong>＋ Gericht wählen</strong></button><button class="mealRemove" data-remove="${day}:${idx}" title="Entfernen">✕</button></div>`;
     return `<div class="meal"><div class="mealCard" data-change="${day}:${idx}" title="Gericht ändern"><strong>${d.special?'⭐ ':''}${this.esc(d.name)}</strong><small>${d.special?'Systemeintrag':'Antippen zum Ändern'}</small></div><button class="mealRemove" data-remove="${day}:${idx}" title="Entfernen">✕</button></div>`;
   }
-  showPicker(day,idx){
-    const p=structuredClone(this.data.week_plan||{}),current=(p[day]||[])[Number(idx)]||'',dishes=this.activeDishes();
-    const container=this.shadowRoot.querySelector(`[data-day="${day}"]`);
-    const meals=[...container.querySelectorAll('.meal')];
-    const el=meals[Number(idx)];if(!el)return;
-    el.innerHTML=`<select class="picker"><option value="">Gericht wählen …</option>${dishes.map(d=>`<option value="${this.esc(d.id)}" ${d.id===current?'selected':''}>${this.esc(d.name)}</option>`).join('')}</select>`;
-    const sel=el.querySelector('select');sel.focus();sel.onchange=async()=>{p[day]=p[day]||[];p[day][Number(idx)]=sel.value;p[day]=p[day].filter(Boolean);await this.save(p);};
+
+  openMealPicker(day,idx){
+    const dialog=this.shadowRoot.querySelector('#mealPickerDialog'),modal=this.shadowRoot.querySelector('#mealPickerModal');
+    const all=this.activeDishes();
+    const specials=this.specialDishes();
+    const normal=all.filter(d=>!specials.some(s=>s.id===d.id));
+    const cats=['Alle',...new Set(normal.flatMap(d=>(d.categories&&d.categories.length?d.categories:[d.category]).filter(Boolean)))];
+    let query='',cat='Alle';
+
+    modal.innerHTML=`<h2>🍽️ Gericht wählen</h2>
+      <div class="pickerSearchWrap"><input id="pickerSearch" placeholder="🔎 Gericht suchen …"><button id="pickerClear" class="pickerClear" style="display:none">✕</button></div>
+      <div class="pickerCats">${cats.map(c=>`<button data-picker-cat="${this.esc(c)}" class="${c==='Alle'?'active':''}">${this.esc(c)}</button>`).join('')}</div>
+      <div id="specialPicker" class="specialGrid"></div>
+      <div id="pickerGrid" class="pickerGrid"></div>
+      <div class="actions"><button id="pickerCancel">Abbrechen</button></div>`;
+
+    const render=()=>{
+      const q=query.toLocaleLowerCase('de-DE');
+      const filtered=normal.filter(d=>{
+        const cats=(d.categories&&d.categories.length?d.categories:[d.category]).filter(Boolean);
+        return (!q || d.name.toLocaleLowerCase('de-DE').includes(q) || cats.join(' ').toLocaleLowerCase('de-DE').includes(q))
+          && (cat==='Alle'||cats.includes(cat));
+      });
+
+      modal.querySelector('#specialPicker').innerHTML=specials.map(d=>`<button class="pickCard specialPick" data-pick="${this.esc(d.id)}">⭐ ${this.esc(d.name)}</button>`).join('');
+      modal.querySelector('#pickerGrid').innerHTML=filtered.length?filtered.map(d=>`<button class="pickCard" data-pick="${this.esc(d.id)}">
+        ${d.image_url?`<img src="${this.esc(d.image_url)}" loading="lazy">`:''}
+        <div class="pickBody"><strong>${this.esc(d.name)}</strong><small>${this.esc((d.categories&&d.categories.length?d.categories.join(' · '):(d.category||'')))}</small></div>
+      </button>`).join(''):'<div class="empty">Keine Gerichte gefunden.</div>';
+
+      modal.querySelectorAll('[data-pick]').forEach(b=>b.onclick=async()=>{
+        const p=structuredClone(this.data.week_plan||{});
+        p[day]=p[day]||[];
+        p[day][Number(idx)]=b.dataset.pick;
+        p[day]=p[day].filter(Boolean);
+        dialog.close();
+        await this.save(p);
+      });
+    };
+
+    const search=modal.querySelector('#pickerSearch'),clear=modal.querySelector('#pickerClear');
+    search.oninput=()=>{query=search.value;clear.style.display=query?'':'none';render();};
+    clear.onclick=()=>{query='';search.value='';clear.style.display='none';render();search.focus();};
+    modal.querySelectorAll('[data-picker-cat]').forEach(b=>b.onclick=()=>{
+      cat=b.dataset.pickerCat;
+      modal.querySelectorAll('[data-picker-cat]').forEach(x=>x.classList.toggle('active',x===b));
+      render();
+    });
+    modal.querySelector('#pickerCancel').onclick=()=>dialog.close();
+
+    render();
+    dialog.showModal();
+    setTimeout(()=>search.focus(),0);
   }
+
   openShopping(){
     const planned=[];for(const [day] of this.days())for(const id of (this.data.week_plan?.[day]||[])){const d=this.dish(id);if(d)planned.push(d);}
     if(!planned.length){alert('Im Wochenplan sind noch keine Gerichte eingetragen.');return;}
