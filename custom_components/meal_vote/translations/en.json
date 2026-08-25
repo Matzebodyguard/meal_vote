@@ -4,11 +4,12 @@
     "step": {
       "user": {
         "title": "Set up Meal Vote",
-        "description": "Choose the mounted NAS folder, the people who can vote, and the Home Assistant to-do entity used for shopping.",
+        "description": "Choose whether Meal Vote stores its data locally on Home Assistant or in a mounted network/NAS folder.",
         "data": {
-          "data_path": "Data folder",
+          "data_path": "Network/NAS data folder (network mode only)",
           "people": "People (comma separated)",
-          "todo_entity": "Shopping list (to-do entity)"
+          "todo_entity": "Shopping list (to-do entity)",
+          "storage_mode": "Storage location"
         }
       }
     },
@@ -25,7 +26,9 @@
         "title": "Meal Vote options",
         "data": {
           "people": "People (comma separated)",
-          "todo_entity": "Shopping list (to-do entity)"
+          "todo_entity": "Shopping list (to-do entity)",
+          "storage_mode": "Storage location",
+          "data_path": "Network/NAS data folder (network mode only)"
         }
       }
     }

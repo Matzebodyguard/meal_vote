@@ -4,11 +4,12 @@
     "step": {
       "user": {
         "title": "Essenswahl einrichten",
-        "description": "Wähle den eingebundenen Synology-Ordner, die abstimmenden Personen und die Home-Assistant-To-do-Liste für Einkäufe.",
+        "description": "Wähle, ob Essenswahl lokal auf Home Assistant oder auf einem eingebundenen Netzwerk-/NAS-Ordner speichern soll.",
         "data": {
-          "data_path": "Datenordner",
+          "data_path": "Netzwerk-/NAS-Datenordner (nur bei Netzwerk)",
           "people": "Personen (kommagetrennt)",
-          "todo_entity": "Einkaufsliste (To-do-Entität)"
+          "todo_entity": "Einkaufsliste (To-do-Entität)",
+          "storage_mode": "Speicherort"
         }
       }
     },
@@ -25,7 +26,9 @@
         "title": "Essenswahl Optionen",
         "data": {
           "people": "Personen (kommagetrennt)",
-          "todo_entity": "Einkaufsliste (To-do-Entität)"
+          "todo_entity": "Einkaufsliste (To-do-Entität)",
+          "storage_mode": "Speicherort",
+          "data_path": "Netzwerk-/NAS-Datenordner (nur bei Netzwerk)"
         }
       }
     }

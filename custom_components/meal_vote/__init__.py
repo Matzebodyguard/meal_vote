@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.event import async_track_time_interval
 
-from .const import DEFAULT_PEOPLE, DEFAULT_TODO_ENTITY, DOMAIN, SYNC_MINUTES
+from .const import DEFAULT_PEOPLE, DEFAULT_STORAGE_MODE, DEFAULT_TODO_ENTITY, DOMAIN, LOCAL_DATA_DIR, SYNC_MINUTES
 from .manager import MealVoteManager
 
 
@@ -22,6 +22,38 @@ def _people(entry: ConfigEntry) -> list[str]:
 
 def _todo_entity(entry: ConfigEntry) -> str:
     return entry.options.get("todo_entity", entry.data.get("todo_entity", DEFAULT_TODO_ENTITY)).strip() or DEFAULT_TODO_ENTITY
+
+
+def _storage_mode(entry: ConfigEntry) -> str:
+    # Existing pre-v0.6.18 entries with a data_path remain network-backed.
+    return entry.options.get(
+        "storage_mode",
+        entry.data.get("storage_mode", "network" if entry.data.get("data_path") else DEFAULT_STORAGE_MODE),
+    )
+
+
+def _data_path(hass: HomeAssistant, entry: ConfigEntry) -> str:
+    if _storage_mode(entry) == "local":
+        return hass.config.path(LOCAL_DATA_DIR)
+    return entry.options.get("data_path", entry.data.get("data_path", "")).strip()
+
+
+def _ensure_local_storage(path: str) -> None:
+    data_dir = Path(path)
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "images").mkdir(parents=True, exist_ok=True)
+
+    dishes = data_dir / "dishes.csv"
+    if not dishes.exists():
+        dishes.write_text("id,name,category,categories,image,active\n", encoding="utf-8")
+
+    ingredients = data_dir / "ingredients.csv"
+    if not ingredients.exists():
+        ingredients.write_text("dish_id,name,amount,unit\n", encoding="utf-8")
+
+    recipes = data_dir / "recipes.csv"
+    if not recipes.exists():
+        recipes.write_text("dish_id,recipe\n", encoding="utf-8")
 
 
 def _manager(hass: HomeAssistant) -> MealVoteManager:
@@ -51,7 +83,10 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    manager = MealVoteManager(hass, entry.data["data_path"], _people(entry), _todo_entity(entry))
+    data_path = _data_path(hass, entry)
+    if _storage_mode(entry) == "local":
+        await hass.async_add_executor_job(_ensure_local_storage, data_path)
+    manager = MealVoteManager(hass, data_path, _people(entry), _todo_entity(entry))
     await manager.async_initialize()
     hass.data[DOMAIN][entry.entry_id] = manager
 

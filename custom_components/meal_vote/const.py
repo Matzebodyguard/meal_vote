@@ -11,3 +11,6 @@ SYNC_MINUTES = 10
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 
 RECIPES_CSV_NAME = "recipes.csv"
+
+DEFAULT_STORAGE_MODE = "local"
+LOCAL_DATA_DIR = "meal_vote"
