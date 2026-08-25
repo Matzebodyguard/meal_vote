@@ -26,8 +26,8 @@ class MealWeekPlanCard extends HTMLElement {
   }
   days(){return [['mon','Montag'],['tue','Dienstag'],['wed','Mittwoch'],['thu','Donnerstag'],['fri','Freitag'],['sat','Samstag'],['sun','Sonntag']];}
   dish(id){
-    if(id==='__away__')return{id:'__away__',name:'Wir sind nicht da!',special:true,image_url:'/meal_vote_static/special-away.webp?v=0.6.19'};
-    if(id==='__bread__')return{id:'__bread__',name:'Brot',special:true,image_url:'/meal_vote_static/special-bread.webp?v=0.6.19'};
+    if(id==='__away__')return{id:'__away__',name:'Wir sind nicht da!',special:true,image_url:'/meal_vote_static/special-away.webp?v=0.6.20'};
+    if(id==='__bread__')return{id:'__bread__',name:'Brot',special:true,image_url:'/meal_vote_static/special-bread.webp?v=0.6.20'};
     return (this.data.dishes||[]).find(d=>d.id===id);
   }
   startRotation(){
@@ -66,8 +66,8 @@ class MealWeekPlanCard extends HTMLElement {
     this.shadowRoot.innerHTML=`<style>
       :host{display:block;width:100%;max-width:none!important;min-width:0}
       *{box-sizing:border-box}
-      ha-card{display:block;width:100%!important;max-width:none!important;min-width:0;margin:0;padding:10px 12px;background:var(--ha-card-background,var(--card-background-color));border-radius:20px}
-      .head{display:flex;align-items:center;gap:10px;margin-bottom:8px}.head h2{margin:0;flex:1;font-size:1.25rem;font-weight:800}.badge{font-size:.72rem;opacity:.45}
+      ha-card{display:block;width:100%!important;max-width:none!important;min-width:0;margin:0;padding:7px 10px;background:var(--ha-card-background,var(--card-background-color));border-radius:20px}
+      
       .week{display:grid;width:100%;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;align-items:stretch}
       .day{border:1px solid var(--divider-color);border-radius:14px;padding:7px;min-width:0;min-height:105px;background:var(--secondary-background-color);display:flex;flex-direction:column;gap:6px}
       .day.today{outline:2px solid var(--primary-color);outline-offset:-2px}
@@ -82,7 +82,7 @@ class MealWeekPlanCard extends HTMLElement {
       @media(max-width:650px){.week{grid-template-columns:repeat(2,minmax(0,1fr))}}
     </style>
     <ha-card>
-      <div class="head"><h2>📅 Wochenplan</h2><span class="badge">UI 0.6.19</span></div>
+      
       <div class="week">
         ${this.days().map(([key,label],index)=>{
           const dishes=(plan[key]||[]).map(id=>this.dish(id)).filter(Boolean);
