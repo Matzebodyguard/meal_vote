@@ -29,7 +29,8 @@
           "todo_entity": "Shopping list (to-do entity)",
           "storage_mode": "Storage location",
           "data_path": "Network/NAS data folder (network mode only)"
-        }
+        },
+        "description": "When changing the storage location, dishes, ingredients, recipes and images are automatically copied to the new storage. Source data is kept."
       }
     }
   }

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 from pathlib import Path
+import shutil
 import voluptuous as vol
 
 from homeassistant.components import websocket_api
@@ -25,7 +26,7 @@ def _todo_entity(entry: ConfigEntry) -> str:
 
 
 def _storage_mode(entry: ConfigEntry) -> str:
-    # Existing pre-v0.6.18 entries with a data_path remain network-backed.
+    # Existing pre-v0.6.19 entries with a data_path remain network-backed.
     return entry.options.get(
         "storage_mode",
         entry.data.get("storage_mode", "network" if entry.data.get("data_path") else DEFAULT_STORAGE_MODE),
@@ -54,6 +55,50 @@ def _ensure_local_storage(path: str) -> None:
     recipes = data_dir / "recipes.csv"
     if not recipes.exists():
         recipes.write_text("dish_id,recipe\n", encoding="utf-8")
+
+
+def _migrate_storage(source: str, target: str) -> dict:
+    """Copy Meal Vote data between local and network storage without deleting source."""
+    src = Path(source)
+    dst = Path(target)
+    if src.resolve() == dst.resolve():
+        return {"copied": 0, "skipped": 0}
+
+    if not src.is_dir():
+        raise FileNotFoundError(f"Quellordner nicht erreichbar: {src}")
+
+    dst.mkdir(parents=True, exist_ok=True)
+    copied = 0
+    skipped = 0
+
+    # Copy all Meal Vote CSV files and the image directory. Existing destination
+    # files are backed up before replacement so a migration is reversible.
+    for name in ("dishes.csv", "ingredients.csv", "recipes.csv"):
+        source_file = src / name
+        if not source_file.exists():
+            skipped += 1
+            continue
+        target_file = dst / name
+        if target_file.exists() and target_file.stat().st_size:
+            backup = dst / f"{name}.before_migration"
+            shutil.copy2(target_file, backup)
+        shutil.copy2(source_file, target_file)
+        copied += 1
+
+    source_images = src / "images"
+    target_images = dst / "images"
+    target_images.mkdir(parents=True, exist_ok=True)
+    if source_images.is_dir():
+        for item in source_images.rglob("*"):
+            if not item.is_file():
+                continue
+            rel = item.relative_to(source_images)
+            dest = target_images / rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(item, dest)
+            copied += 1
+
+    return {"copied": copied, "skipped": skipped}
 
 
 def _manager(hass: HomeAssistant) -> MealVoteManager:
@@ -119,6 +164,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    manager = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if isinstance(manager, MealVoteManager):
+        old_path = str(manager.data_path)
+        new_path = _data_path(hass, entry)
+        if old_path and new_path and Path(old_path) != Path(new_path):
+            if _storage_mode(entry) == "local":
+                await hass.async_add_executor_job(_ensure_local_storage, new_path)
+            await hass.async_add_executor_job(_migrate_storage, old_path, new_path)
     await hass.config_entries.async_reload(entry.entry_id)
 
 

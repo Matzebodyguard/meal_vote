@@ -29,7 +29,8 @@
           "todo_entity": "Einkaufsliste (To-do-Entität)",
           "storage_mode": "Speicherort",
           "data_path": "Netzwerk-/NAS-Datenordner (nur bei Netzwerk)"
-        }
+        },
+        "description": "Beim Wechsel des Speicherorts werden Gerichte, Zutaten, Rezepte und Bilder automatisch in den neuen Speicher kopiert. Die Quelldaten bleiben erhalten."
       }
     }
   }
