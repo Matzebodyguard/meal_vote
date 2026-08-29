@@ -26,7 +26,7 @@ class MealVoteCard extends HTMLElement {
       .ingredient-suggestion small{color:var(--secondary-text-color);white-space:nowrap}
           .ingredientTools button.pantryActive{background:var(--primary-color);color:var(--text-primary-color);font-weight:700}
 </style><ha-card>
-      <div class="top"><div class="searchWrap"><input class="search" id="search" placeholder="🔎 Gericht, Kategorie, Person oder Zutat suchen…" value="${this.esc(this._search)}"><button type="button" class="searchClear" id="searchClear" title="Suche löschen" aria-label="Suche löschen" style="${this._search?'':'display:none'}">✕</button></div><select id="sort"><option value="votes">Meiste Stimmen</option><option value="oldest">Lange nicht gekocht</option><option value="recent">Zuletzt gekocht</option><option value="name">Name</option></select><span style="font-size:.8rem;opacity:.7;font-weight:700">UI 0.6.21</span><button id="reload">↻ Sync</button><button id="inactive">${this._showInactive?'Aktive':'Verwaltung'}</button>${this._showInactive?`<button id="pantry">🏠 Standardvorrat</button><button id="optimizeImages">🖼 Bilder optimieren</button><button id="importRecipe">📥 Rezept importieren</button><button id="add" class="add">＋ Gericht</button>`:''}</div>
+      <div class="top"><div class="searchWrap"><input class="search" id="search" placeholder="🔎 Gericht, Kategorie, Person oder Zutat suchen…" value="${this.esc(this._search)}"><button type="button" class="searchClear" id="searchClear" title="Suche löschen" aria-label="Suche löschen" style="${this._search?'':'display:none'}">✕</button></div><select id="sort"><option value="votes">Meiste Stimmen</option><option value="oldest">Lange nicht gekocht</option><option value="recent">Zuletzt gekocht</option><option value="name">Name</option></select><span style="font-size:.8rem;opacity:.7;font-weight:700">UI 0.6.22</span><button id="reload">↻ Sync</button><button id="inactive">${this._showInactive?'Aktive':'Verwaltung'}</button>${this._showInactive?`<button id="pantry">🏠 Standardvorrat</button><button id="optimizeImages">🖼 Bilder optimieren</button><button id="importRecipe">📥 Rezept importieren</button><button id="add" class="add">＋ Gericht</button>`:''}</div>
       <div class="status ${sync.error?'error':''}">${this.esc(syncText)} · automatisch alle ${sync.interval_minutes||10} Min.</div>
       <div class="cats">${cats.map(c=>`<button data-cat="${this.esc(c)}" class="${c===this._category?'active':''}">${this.esc(c)}</button>`).join('')}</div>
       <div class="grid">${dishes.length?dishes.map(d=>this.dishHtml(d)).join(''):'<div class="empty">Keine Gerichte gefunden.</div>'}</div>
@@ -581,14 +581,52 @@ Kartoffeln schneiden.`;
   openImportDialog(){
     this.runImportParserSelfTest();
     const dialog=this.shadowRoot.querySelector('#importDialog'),modal=this.shadowRoot.querySelector('#importModal');
+    const existing=(this.data?.dishes||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'de'));
     modal.innerHTML=`<h2>📥 Rezept importieren</h2>
       <div class="hint">Kopiere Titel, Zutaten und Zubereitung eines Rezepts hier hinein. Der Inhalt wird lokal im Browser ausgewertet.</div>
-      <textarea id="importText" rows="16" style="width:100%;margin-top:12px" placeholder="Beispiel:\nSpaghetti Bolognese\n\nZutaten:\n500 g Hackfleisch\n500 g Spaghetti\n2 Dosen Tomaten\n\nZubereitung:\n..."></textarea>
+      <textarea id="importText" rows="16" style="width:100%;margin-top:12px" placeholder="Beispiel:\nSpaghetti Bolognese\n\nZutaten:\n500 g Hackfleisch\n500 g Spaghetti\n\nZubereitung:\n..."></textarea>
       <div id="importPreview" style="margin-top:14px"></div>
-      <div class="modalActions"><button id="importCancel">Abbrechen</button><button id="importAnalyze">Analysieren</button><button id="importCreate" disabled>Als neues Gericht übernehmen</button></div>`;
+
+      <div id="importExistingBox" style="display:none;margin-top:16px;padding:12px;border:1px solid var(--divider-color);border-radius:12px">
+        <strong>In vorhandenes Gericht übernehmen</strong>
+        <div class="hint" style="margin:6px 0 10px">Name, Bild und Aktiv-Status des vorhandenen Gerichts bleiben erhalten. Zutaten und Rezept werden ersetzt; Kategorien werden zusammengeführt.</div>
+        <select id="importTarget" style="width:100%">
+          <option value="">Gericht auswählen …</option>
+          ${existing.map(d=>`<option value="${this.esc(d.id)}">${this.esc(d.name)}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="modalActions">
+        <button id="importCancel">Abbrechen</button>
+        <button id="importAnalyze">Analysieren</button>
+        <button id="importExisting" disabled>↪ In vorhandenes Gericht</button>
+        <button id="importCreate" disabled>＋ Als neues Gericht</button>
+      </div>`;
+
     let parsed=null;
     const preview=modal.querySelector('#importPreview');
+    const target=modal.querySelector('#importTarget');
+    const existingBox=modal.querySelector('#importExistingBox');
+    const existingButton=modal.querySelector('#importExisting');
+    const createButton=modal.querySelector('#importCreate');
+
+    const normalizedIngredients=()=>((parsed?.ingredients)||[]).map(i=>{
+      const name=String(i.name||'').trim();
+      return {
+        name,
+        ingredient:name,
+        amount:String(i.amount||'').trim(),
+        unit:String(i.unit||'').trim()
+      };
+    }).filter(i=>i.name);
+
+    const refreshButtons=()=>{
+      createButton.disabled=!(parsed&&parsed.name);
+      existingButton.disabled=!(parsed&&parsed.name&&target.value);
+    };
+
     modal.querySelector('#importCancel').onclick=()=>dialog.close();
+
     modal.querySelector('#importAnalyze').onclick=()=>{
       parsed=this.parseImportedRecipe(modal.querySelector('#importText').value);
       preview.innerHTML=`<div><strong>Titel:</strong> ${this.esc(parsed.name||'—')}</div>
@@ -598,27 +636,22 @@ Kartoffeln schneiden.`;
           ${(parsed.ingredients||[]).map(i=>`<div style="padding:3px 0"><strong>${this.esc(i.name||'')}</strong> · Menge: ${this.esc(i.amount||'—')} · Einheit: ${this.esc(i.unit||'—')}</div>`).join('')}
         </div>
         <div style="margin-top:6px"><strong>Rezepttext:</strong> ${parsed.recipe?this.esc(parsed.recipe.slice(0,220))+(parsed.recipe.length>220?' …':''):'—'}</div>`;
-      modal.querySelector('#importCreate').disabled=!parsed.name;
+      existingBox.style.display='';
+      refreshButtons();
     };
-    modal.querySelector('#importCreate').onclick=async()=>{
+
+    target.onchange=refreshButtons;
+
+    createButton.onclick=async()=>{
       if(!parsed||!parsed.name)return;
       try{
-        const normalizedIngredients=(parsed.ingredients||[]).map(i=>{
-          const name=String(i.name||'').trim();
-          return {
-            name,
-            ingredient:name,
-            amount:String(i.amount||'').trim(),
-            unit:String(i.unit||'').trim()
-          };
-        }).filter(i=>i.name);
         const r=await this.ws('meal_vote/add_dish',{
           name:parsed.name,
           category:parsed.categories[0]||'',
           categories:parsed.categories,
           recipe:parsed.recipe,
           image:'',
-          ingredients:normalizedIngredients
+          ingredients:normalizedIngredients()
         });
         dialog.close();
         await this.load();
@@ -626,6 +659,38 @@ Kartoffeln schneiden.`;
         if(created)this.openDishDialog(created);
       }catch(e){alert(e.message||e);}
     };
+
+    existingButton.onclick=async()=>{
+      if(!parsed||!target.value)return;
+      const dish=this.findDish(target.value);
+      if(!dish){alert('Das ausgewählte Gericht wurde nicht gefunden.');return;}
+
+      const mergedCategories=[...new Map(
+        [...(dish.categories&&dish.categories.length?dish.categories:(dish.category?[dish.category]:[])),...(parsed.categories||[])]
+          .filter(Boolean)
+          .map(c=>[String(c).toLocaleLowerCase('de-DE'),String(c)])
+      ).values()];
+
+      if(!confirm(`Zutaten und Rezept von „${dish.name}“ durch den Import ersetzen?`))return;
+
+      try{
+        await this.ws('meal_vote/update_dish',{
+          dish_id:dish.id,
+          name:dish.name,
+          category:mergedCategories[0]||'',
+          categories:mergedCategories,
+          recipe:parsed.recipe,
+          image:dish.image||'',
+          active:dish.active!==false,
+          ingredients:normalizedIngredients()
+        });
+        dialog.close();
+        await this.load();
+        const updated=this.findDish(dish.id);
+        if(updated)this.openDishDialog(updated);
+      }catch(e){alert(e.message||e);}
+    };
+
     dialog.showModal();
     setTimeout(()=>modal.querySelector('#importText')?.focus(),0);
   }
@@ -658,4 +723,4 @@ Kartoffeln schneiden.`;
   async uploadImage(dishId,file){if(file.size>8*1024*1024)throw new Error('Das Bild darf maximal 8 MB groß sein.');const dataUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsDataURL(file);});await this.ws('meal_vote/upload_image',{dish_id:dishId,filename:file.name,data_url:dataUrl});}
   esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}getCardSize(){return 7;}
 }
-if(!customElements.get('meal-vote-card')) customElements.define('meal-vote-card',MealVoteCard);console.info('[meal_vote] UI 0.6.21 loaded');window.customCards=window.customCards||[];window.customCards.push({type:'meal-vote-card',name:'Essenswahl',description:'Familien-Voting für Gerichte'});
+if(!customElements.get('meal-vote-card')) customElements.define('meal-vote-card',MealVoteCard);console.info('[meal_vote] UI 0.6.22 loaded');window.customCards=window.customCards||[];window.customCards.push({type:'meal-vote-card',name:'Essenswahl',description:'Familien-Voting für Gerichte'});
