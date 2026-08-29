@@ -170,6 +170,15 @@ class MealVoteManager:
                     })
         os.replace(tmp, self.ingredients_csv_path)
 
+    def _invalidate_image_cache(self, dish_id: str):
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        for suffix in ("full", "thumb"):
+            target = self.cache_dir / f"{dish_id}_{suffix}.webp"
+            try:
+                target.unlink(missing_ok=True)
+            except OSError:
+                pass
+
     def _sync_images(self):
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         for dish in self.dishes.values():
@@ -583,6 +592,12 @@ class MealVoteManager:
         rel = f"images/{dish_id}_{safe_base[:40]}.webp"
         target = self.data_path / rel
         await self.hass.async_add_executor_job(self._write_image, target, optimized)
+
+        # Beim Upload den bisherigen Cache dieses Gerichts bewusst entfernen.
+        # Damit werden Vollbild und Thumbnail beim anschließenden Reload immer
+        # sofort aus dem neuen Bild erzeugt – auch wenn Dateiname oder mtime
+        # mit dem vorherigen Bild kollidieren.
+        await self.hass.async_add_executor_job(self._invalidate_image_cache, dish_id)
 
         d = self.dishes[dish_id]
         await self.async_update_dish(
