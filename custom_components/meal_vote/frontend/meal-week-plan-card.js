@@ -26,8 +26,8 @@ class MealWeekPlanCard extends HTMLElement {
   }
   days(){return [['mon','Montag'],['tue','Dienstag'],['wed','Mittwoch'],['thu','Donnerstag'],['fri','Freitag'],['sat','Samstag'],['sun','Sonntag']];}
   dish(id){
-    if(id==='__away__')return{id:'__away__',name:'Wir sind nicht da!',special:true,image_url:'/meal_vote_static/special-away.webp?v=0.6.22'};
-    if(id==='__bread__')return{id:'__bread__',name:'Brot',special:true,image_url:'/meal_vote_static/special-bread.webp?v=0.6.22'};
+    if(id==='__away__')return{id:'__away__',name:'Wir sind nicht da!',special:true,image_url:'/meal_vote_static/special-away.webp?v=0.6.23'};
+    if(id==='__bread__')return{id:'__bread__',name:'Brot',special:true,image_url:'/meal_vote_static/special-bread.webp?v=0.6.23'};
     return (this.data.dishes||[]).find(d=>d.id===id);
   }
   startRotation(){

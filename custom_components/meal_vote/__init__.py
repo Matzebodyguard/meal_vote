@@ -26,7 +26,7 @@ def _todo_entity(entry: ConfigEntry) -> str:
 
 
 def _storage_mode(entry: ConfigEntry) -> str:
-    # Existing pre-v0.6.22 entries with a data_path remain network-backed.
+    # Existing pre-v0.6.23 entries with a data_path remain network-backed.
     return entry.options.get(
         "storage_mode",
         entry.data.get("storage_mode", "network" if entry.data.get("data_path") else DEFAULT_STORAGE_MODE),
