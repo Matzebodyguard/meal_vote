@@ -26,7 +26,7 @@ def _todo_entity(entry: ConfigEntry) -> str:
 
 
 def _storage_mode(entry: ConfigEntry) -> str:
-    # Existing pre-v0.6.24 entries with a data_path remain network-backed.
+    # Existing pre-v0.6.25 entries with a data_path remain network-backed.
     return entry.options.get(
         "storage_mode",
         entry.data.get("storage_mode", "network" if entry.data.get("data_path") else DEFAULT_STORAGE_MODE),
@@ -259,11 +259,12 @@ async def ws_set_pantry(hass, connection, msg):
 @websocket_api.websocket_command({
     vol.Required("type"): "meal_vote/set_week_plan",
     vol.Required("plan"): dict,
+    vol.Optional("week", default="current"): vol.In(["current", "next"]),
 })
 @websocket_api.async_response
 async def ws_set_week_plan(hass, connection, msg):
     try:
-        await _manager(hass).async_set_week_plan(msg["plan"])
+        await _manager(hass).async_set_week_plan(msg["plan"], msg.get("week", "current"))
         connection.send_result(msg["id"], {"ok": True})
     except (ValueError, OSError) as err:
         connection.send_error(msg["id"], "week_plan_failed", str(err))

@@ -35,7 +35,7 @@ class MealVoteManager:
         self.todo_entity = todo_entity
         self.dishes: dict[str, dict] = {}
         self.store = Store(hass, STORE_VERSION, STORE_KEY)
-        self.state = {"votes": {}, "history": {}, "cached_dishes": [], "pantry": [], "week_plan": {}}
+        self.state = {"votes": {}, "history": {}, "cached_dishes": [], "pantry": [], "week_plan": {}, "week_plan_next": {}}
         self.cache_dir = Path(hass.config.path("www", IMAGE_CACHE_DIR))
         self.last_sync_ok: str | None = None
         self.last_sync_error: str | None = None
@@ -542,14 +542,15 @@ class MealVoteManager:
         return text
 
 
-    async def async_set_week_plan(self, plan: dict[str, list[str]]):
+    async def async_set_week_plan(self, plan: dict[str, list[str]], week: str = "current"):
         cleaned: dict[str, list[str]] = {}
         for day, dish_ids in (plan or {}).items():
             if day not in {"mon", "tue", "wed", "thu", "fri", "sat", "sun"}:
                 continue
             ids = [str(x) for x in (dish_ids or []) if str(x) in self.dishes or str(x) in {"__away__", "__bread__"}]
             cleaned[day] = ids
-        self.state["week_plan"] = cleaned
+        target = "week_plan_next" if week == "next" else "week_plan"
+        self.state[target] = cleaned
         await self._save()
 
     async def async_add_week_to_shopping_list(self, ingredient_refs: list[dict] | None = None):
@@ -714,4 +715,5 @@ class MealVoteManager:
             "todo_entity": self.todo_entity,
             "pantry": self.state.get("pantry", []),
             "week_plan": self.state.get("week_plan", {}),
+            "week_plan_next": self.state.get("week_plan_next", {}),
         }
