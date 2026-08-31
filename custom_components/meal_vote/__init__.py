@@ -26,7 +26,7 @@ def _todo_entity(entry: ConfigEntry) -> str:
 
 
 def _storage_mode(entry: ConfigEntry) -> str:
-    # Existing pre-v0.6.25 entries with a data_path remain network-backed.
+    # Existing pre-v0.6.26 entries with a data_path remain network-backed.
     return entry.options.get(
         "storage_mode",
         entry.data.get("storage_mode", "network" if entry.data.get("data_path") else DEFAULT_STORAGE_MODE),
@@ -184,7 +184,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 @websocket_api.async_response
 async def ws_get_data(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
     try:
-        connection.send_result(msg["id"], _manager(hass).export())
+        manager = _manager(hass)
+        await manager._async_roll_week_plan_if_needed()
+        connection.send_result(msg["id"], manager.export())
     except ValueError as err:
         connection.send_error(msg["id"], "not_loaded", str(err))
 

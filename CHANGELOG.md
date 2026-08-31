@@ -1,70 +1,78 @@
 # Changelog
 
-## 0.6.25
+## 0.6.26
+- Automatischer Wochenwechsel ergänzt.
+- Beim ersten Zugriff ab Montag wird „Nächste Woche“ automatisch zu „Diese Woche“.
+- Anschließend wird „Nächste Woche“ geleert und steht sofort für die weitere Planung bereit.
+- Der Wechsel wird mit dem Montag-Datum gespeichert und deshalb pro Woche nur einmal ausgeführt.
+- Bestehende Installationen werden beim Update nur verankert; der vorhandene aktuelle Plan wird beim ersten Start nicht versehentlich verschoben.
+- War Home Assistant länger als eine ganze Woche offline, wird ein veralteter Folgeplan nicht fälschlich als aktuelle Woche übernommen.
+
+## 0.6.26
 - Wochenverwaltung unterstützt jetzt getrennt „Diese Woche“ und „Nächste Woche“.
 - Beide Wochen werden unabhängig gespeichert.
 - Gerichtsauswahl, Löschen, Woche leeren und Wocheneinkauf arbeiten jeweils auf der ausgewählten Woche.
 - Bestehende Wochenpläne bleiben als „Diese Woche“ vollständig kompatibel.
 
-## 0.6.25
+## 0.6.26
 - Beim Hochladen oder Austauschen eines Gerichtbildes werden Thumbnail- und Vollbild-Cache sofort verworfen.
 - Der anschließende Reload erzeugt beide Bilder unmittelbar neu; der 10-Minuten-Sync muss nicht mehr abgewartet werden.
 - Funktioniert auch beim Ersetzen durch ein Bild mit demselben Dateinamen.
 
-## 0.6.25
+## 0.6.26
 - Überschrift `Wochenplan` und sichtbare UI-Version aus der Ausgabekarte entfernt.
 - Vertikale Innenabstände weiter reduziert.
 
-## 0.6.25
+## 0.6.26
 - Wochenplan-Admin: Dropdown-Auswahl durch Suchdialog mit Kacheln ersetzt.
 - Suchfeld mit Lösch-X, Kategorie-Filterchips und Bildkacheln ergänzt.
 - `Brot` und `Wir sind nicht da!` stehen als feste Systemeinträge oben.
 - Gericht wird per Tipp sofort in den gewählten Wochentag übernommen.
 
-## 0.6.25
+## 0.6.26
 - X-Löschbutton in der Hauptsuche ergänzt.
 - X-Löschbutton in der Standardvorrat-Suche ergänzt.
 - Löschen behält den Fokus im Suchfeld; Bildschirmtastatur bleibt nutzbar.
 - Neues Meal-Vote-Installationsicon als `icon.png` ergänzt.
 
-## 0.6.25
+## 0.6.26
 - Fix: Zutatenname wird beim Import explizit im Frontend/Backend-Schema übergeben.
 - Importierte Zutaten behalten jetzt Name, Menge und Einheit bis in den Zutateneditor.
 
-## 0.6.25
+## 0.6.26
 - Wochenplan-Karte nutzt jetzt konsequent die volle verfügbare Dashboardbreite.
 - Maximalbreiten entfernt und Grid auf 100 % gesetzt.
 - Außenabstände für Wandpanels leicht reduziert.
 
-## 0.6.25
+## 0.6.26
 - Wochenplan auf großen Wandpanels als 7 gleich breite Wochentag-Spalten.
 - Geplante Gerichte werden als kompakte Kacheln statt dauerhaft sichtbarer Dropdowns angezeigt.
 - Antippen einer Gerichtskachel öffnet die Auswahl zum Ändern.
 - Responsive Darstellung: 4 Spalten auf kleineren Tablets, 2 auf schmalen Displays.
 
-## 0.6.25
+## 0.6.26
 - Neue separate Dashboardkarte `meal-week-plan-card`.
 - Montag bis Sonntag planbar; mehrere Gerichte pro Tag möglich.
 - Wochenplan wird lokal in Home Assistant gespeichert.
 - Gemeinsamer Wocheneinkauf mit Standardvorrat und bestehender Mengen-/Duplikatlogik.
 
-## 0.6.25
+## 0.6.26
 - Globale Standardvorrat-Markierung wird jetzt in allen Gerichten direkt im Zutateneditor angezeigt.
 - Aktive 🏠-Schaltflächen werden optisch hervorgehoben.
 - Entfernen/Hinzufügen aktualisiert die Markierung sofort.
 
-## 0.6.25
+## 0.6.26
 - Standardvorrat-Liste ergänzt.
 - Vorratszutaten sind im Einkaufsdialog standardmäßig abgewählt und mit 🏠 markiert.
 - Zutaten können direkt im Zutateneditor dem Standardvorrat hinzugefügt oder daraus entfernt werden.
 - Standardvorrat wird lokal in Home Assistant gespeichert.
 
-## 0.6.25
+## 0.6.26
 - Zutaten-Autovervollständigung aus bereits verwendeten Zutaten.
 - Häufigste bisherige Einheit wird beim Auswählen vorgeschlagen.
 - Keine separate Zutaten-Datenbank nötig.
 
-## 0.6.25
+## 0.6.26
 - Neue Touch-optimierte Zutatenverwaltung mit eigenen Feldern für Zutat, Menge und Einheit.
 - Zutaten können direkt hinzugefügt, gelöscht und per Pfeiltasten sortiert werden.
 - Einheit mit Vorschlägen (g, kg, ml, l, Stück, Dose, Packung, EL, TL, Prise, Bund), Freitext bleibt möglich.
@@ -103,55 +111,55 @@
 
 # Changelog
 
-## 0.6.25
+## 0.6.26
 - Überschrift `Wochenplan` und sichtbare UI-Version aus der Ausgabekarte entfernt.
 - Vertikale Innenabstände weiter reduziert.
 
-## 0.6.25
+## 0.6.26
 - Wochenplan-Admin: Dropdown-Auswahl durch Suchdialog mit Kacheln ersetzt.
 - Suchfeld mit Lösch-X, Kategorie-Filterchips und Bildkacheln ergänzt.
 - `Brot` und `Wir sind nicht da!` stehen als feste Systemeinträge oben.
 - Gericht wird per Tipp sofort in den gewählten Wochentag übernommen.
 
-## 0.6.25
+## 0.6.26
 - X-Löschbutton in der Hauptsuche ergänzt.
 - X-Löschbutton in der Standardvorrat-Suche ergänzt.
 - Löschen behält den Fokus im Suchfeld; Bildschirmtastatur bleibt nutzbar.
 - Neues Meal-Vote-Installationsicon als `icon.png` ergänzt.
 
-## 0.6.25
+## 0.6.26
 - Fix: Zutatenname wird beim Import explizit im Frontend/Backend-Schema übergeben.
 - Importierte Zutaten behalten jetzt Name, Menge und Einheit bis in den Zutateneditor.
 
-## 0.6.25
+## 0.6.26
 - Wochenplan-Karte nutzt jetzt konsequent die volle verfügbare Dashboardbreite.
 - Maximalbreiten entfernt und Grid auf 100 % gesetzt.
 - Außenabstände für Wandpanels leicht reduziert.
 
-## 0.6.25
+## 0.6.26
 - Wochenplan auf großen Wandpanels als 7 gleich breite Wochentag-Spalten.
 - Geplante Gerichte werden als kompakte Kacheln statt dauerhaft sichtbarer Dropdowns angezeigt.
 - Antippen einer Gerichtskachel öffnet die Auswahl zum Ändern.
 - Responsive Darstellung: 4 Spalten auf kleineren Tablets, 2 auf schmalen Displays.
 
-## 0.6.25
+## 0.6.26
 - Neue separate Dashboardkarte `meal-week-plan-card`.
 - Montag bis Sonntag planbar; mehrere Gerichte pro Tag möglich.
 - Wochenplan wird lokal in Home Assistant gespeichert.
 - Gemeinsamer Wocheneinkauf mit Standardvorrat und bestehender Mengen-/Duplikatlogik.
 
-## 0.6.25
+## 0.6.26
 - Globale Standardvorrat-Markierung wird jetzt in allen Gerichten direkt im Zutateneditor angezeigt.
 - Aktive 🏠-Schaltflächen werden optisch hervorgehoben.
 - Entfernen/Hinzufügen aktualisiert die Markierung sofort.
 
-## 0.6.25
+## 0.6.26
 - Standardvorrat-Liste ergänzt.
 - Vorratszutaten sind im Einkaufsdialog standardmäßig abgewählt und mit 🏠 markiert.
 - Zutaten können direkt im Zutateneditor dem Standardvorrat hinzugefügt oder daraus entfernt werden.
 - Standardvorrat wird lokal in Home Assistant gespeichert.
 
-## 0.6.25
+## 0.6.26
 - Zutaten-Autovervollständigung aus bereits verwendeten Zutaten.
 - Häufigste bisherige Einheit wird beim Auswählen vorgeschlagen.
 - Keine separate Zutaten-Datenbank nötig.

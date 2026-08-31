@@ -35,7 +35,7 @@ class MealVoteManager:
         self.todo_entity = todo_entity
         self.dishes: dict[str, dict] = {}
         self.store = Store(hass, STORE_VERSION, STORE_KEY)
-        self.state = {"votes": {}, "history": {}, "cached_dishes": [], "pantry": [], "week_plan": {}, "week_plan_next": {}}
+        self.state = {"votes": {}, "history": {}, "cached_dishes": [], "pantry": [], "week_plan": {}, "week_plan_next": {}, "week_plan_week_start": None}
         self.cache_dir = Path(hass.config.path("www", IMAGE_CACHE_DIR))
         self.last_sync_ok: str | None = None
         self.last_sync_error: str | None = None
@@ -44,12 +44,56 @@ class MealVoteManager:
         stored = await self.store.async_load()
         if stored:
             self.state.update(stored)
+        await self._async_roll_week_plan_if_needed()
         cached = self.state.get("cached_dishes", [])
         self.dishes = {d["id"]: d for d in cached if d.get("id") and d.get("name")}
         try:
             await self.async_reload()
         except (OSError, FileNotFoundError) as err:
             self.last_sync_error = str(err)
+
+    @staticmethod
+    def _monday_key(now: datetime | None = None) -> str:
+        current = (now or datetime.now().astimezone()).date()
+        monday = current.fromordinal(current.toordinal() - current.weekday())
+        return monday.isoformat()
+
+    async def _async_roll_week_plan_if_needed(self):
+        """Roll next week into current once when a new local Monday is reached."""
+        current_monday = self._monday_key()
+        stored_monday = self.state.get("week_plan_week_start")
+
+        # Upgrade path: existing installations already have a valid current week.
+        # Anchor it to the current Monday without moving anything on first start.
+        if not stored_monday:
+            self.state["week_plan_week_start"] = current_monday
+            await self._save()
+            return
+
+        if stored_monday == current_monday:
+            return
+
+        try:
+            previous = datetime.strptime(str(stored_monday), "%Y-%m-%d").date()
+            current = datetime.strptime(current_monday, "%Y-%m-%d").date()
+        except ValueError:
+            self.state["week_plan_week_start"] = current_monday
+            await self._save()
+            return
+
+        if current <= previous:
+            return
+
+        weeks_passed = (current - previous).days // 7
+        if weeks_passed == 1:
+            self.state["week_plan"] = self.state.get("week_plan_next", {}) or {}
+        else:
+            # If HA was offline for more than one whole week, the prepared
+            # "next week" is no longer the current week.
+            self.state["week_plan"] = {}
+        self.state["week_plan_next"] = {}
+        self.state["week_plan_week_start"] = current_monday
+        await self._save()
 
     async def async_reload(self):
         try:
